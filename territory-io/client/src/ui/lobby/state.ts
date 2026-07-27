@@ -1,4 +1,4 @@
-import type { LeaderboardCategory, LeaderboardEntry, PrivateViewMode } from "./types.js";
+import type { LeaderboardCategory, LeaderboardEntry, LobbyTopTab, PrivateViewMode } from "./types.js";
 
 export interface LobbyRefs {
   topBarRoot: HTMLDivElement;
@@ -6,6 +6,10 @@ export interface LobbyRefs {
   lobbyRoot: HTMLDivElement;
   returnRoot: HTMLDivElement;
   endResultTextEl: HTMLDivElement;
+  lobbyTabBtn: HTMLButtonElement;
+  leaderboardTabBtn: HTMLButtonElement;
+  lobbyScreenEl: HTMLDivElement;
+  leaderboardScreenEl: HTMLDivElement;
   playBtn: HTMLButtonElement;
   inputEl: HTMLInputElement;
   statusEl: HTMLDivElement;
@@ -31,8 +35,12 @@ export interface LobbyRefs {
 export const lobbyRuntime = {
   refs: null as LobbyRefs | null,
   isUserAuthenticated: false,
+  isAuthResolved: false,
   currentPrivateView: "MAIN" as PrivateViewMode,
-  currentLeaderboardTab: "games_played" as LeaderboardCategory,
+  currentTopTab: "LOBBY" as LobbyTopTab,
+  currentLeaderboardTab: "wins" as LeaderboardCategory,
+  pendingPrivateJoin: null as { roomId: string | null; code: string } | null,
+  attemptedPrivateJoinKey: null as string | null,
   leaderboardCache: new Map<LeaderboardCategory, { data: LeaderboardEntry[]; timestamp: number }>()
 };
 

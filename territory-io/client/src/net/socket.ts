@@ -9,6 +9,7 @@ import { clientNetState } from "../state/clientState.js";
 
 export type PrivateLobbyMsg = {
   type: "PRIVATE_LOBBY";
+  roomId: string;
   code: string;
   connected: number;
   required: number;
@@ -31,8 +32,8 @@ export type UsernameChangeResultMsg = {
 };
 
 export type ServerMsg =
-  | { type: "WELCOME"; playerId: string; requiredPlayers: number }
-  | { type: "LOBBY"; connected: number; required: number }
+  | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
+  | { type: "LOBBY"; connected: number; required: number; roomId: string }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
   | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number }
   | { type: "LOG"; text: string; color?: string }
@@ -47,8 +48,8 @@ type ClientMsg =
   | { type: "AUTH"; token: string };
 
 export function connect(url: string, handlers: {
-  onWelcome: (playerId: string, requiredPlayers: number) => void;
-  onLobby: (connected: number, required: number) => void;
+  onWelcome: (playerId: string, requiredPlayers: number, roomId: string) => void;
+  onLobby: (connected: number, required: number, roomId: string) => void;
   onState: (state: any) => void;
   onLog: (text: string, color?: string) => void;
   onAuthSuccess?: (username?: string) => void;
@@ -65,10 +66,10 @@ export function connect(url: string, handlers: {
 
     switch (msg.type) {
       case "WELCOME":
-        handlers.onWelcome(msg.playerId, msg.requiredPlayers);
+        handlers.onWelcome(msg.playerId, msg.requiredPlayers, msg.roomId);
         break;
       case "LOBBY":
-        handlers.onLobby(msg.connected, msg.required);
+        handlers.onLobby(msg.connected, msg.required, msg.roomId);
         break;
       case "STATE": {
         if (msg.serverTime) {

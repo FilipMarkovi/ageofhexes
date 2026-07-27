@@ -21,7 +21,7 @@ export async function fetchLeaderboard(category: LeaderboardCategory) {
     return;
   }
 
-  refs.leaderboardListEl.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8; font: 12px system-ui;">Loading...</div>';
+  refs.leaderboardListEl.innerHTML = '<div style="text-align:center; padding: 28px; color: #94a3b8; font: 500 14px system-ui;">Loading...</div>';
 
   try {
     const { data, error } = await supabase
@@ -41,7 +41,7 @@ export async function fetchLeaderboard(category: LeaderboardCategory) {
     }
   } catch (err) {
     console.error("Failed to fetch leaderboard:", err);
-    refs.leaderboardListEl.innerHTML = '<div style="text-align:center; padding: 20px; color: #f87171; font: 12px system-ui;">Failed to load</div>';
+    refs.leaderboardListEl.innerHTML = '<div style="text-align:center; padding: 28px; color: #f87171; font: 500 14px system-ui;">Failed to load</div>';
   }
 }
 
@@ -49,17 +49,17 @@ export function renderLeaderboard(data: LeaderboardEntry[]) {
   const refs = getLobbyRefs();
 
   if (data.length === 0) {
-    refs.leaderboardListEl.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8; font: 12px system-ui;">No data yet</div>';
+    refs.leaderboardListEl.innerHTML = '<div style="text-align:center; padding: 28px; color: #94a3b8; font: 500 14px system-ui;">No data yet</div>';
     return;
   }
 
   refs.leaderboardListEl.innerHTML = data
     .map((entry, i) => {
       return `
-      <li style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:rgba(255,255,255,0.05); border-radius:6px; font: 500 12px system-ui;">
-        <span style="color:#94a3b8; width: 20px;">${i + 1}.</span>
-        <span style="flex:1; color:white; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 8px;">${escapeHtml(entry.username)}</span>
-        <span style="font-weight:700; color:#38bdf8;">${entry.score.toLocaleString()}</span>
+      <li style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.05); border-radius:10px; font: 500 14px system-ui;">
+        <span style="color:#94a3b8; width: 28px; font-weight: 700;">${i + 1}.</span>
+        <span style="flex:1; color:white; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 12px;">${escapeHtml(entry.username)}</span>
+        <span style="font-weight:700; color:#38bdf8; font-size:15px;">${entry.score.toLocaleString()}</span>
       </li>
     `;
     })

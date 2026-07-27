@@ -22,7 +22,8 @@ import { initKeyboard } from "./input/keyboard.js";
 import { initBuildButtons, updateBuildButtons } from "./ui/buildButtons.js";
 import { getConnectedTilesFromHQ_Client } from "./utils/supply.js";
 import { drawTileInfo } from "./ui/tileInfo.js";
-import { handlePrivateLobbyUpdate, initLobbyUI, showError, showSuccess, updateLobbyUI } from "./ui/lobby/index.js";
+import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI, showError, showSuccess, updateLobbyUI } from "./ui/lobby/index.js";
+import { maybeJoinPrivateRoute } from "./ui/lobby/routes.js";
 import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
 import { initPlacementTimerUI,updatePlacementTimerUI } from "./ui/placementTimer.js";
@@ -52,18 +53,20 @@ const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const wsUrl = `${protocol}//${backendHost}`;
 
 export const { sendIntent, tryAuth } = connect(wsUrl, {
-  onWelcome: async (id, requiredPlayers) => {
+  onWelcome: async (id, requiredPlayers, roomId) => {
     clientNetState.playerId = id;
-    clientNetState.lobby = { connected: 0, required: requiredPlayers };
+    clientNetState.lobby = { connected: 0, required: requiredPlayers, roomId };
 
     const { data: { session } } = await supabase.auth.getSession();
+    maybeJoinPrivateRoute({ sendIntent, hideError, showError });
     
     if (session && session.access_token) {
       tryAuth(session.access_token);
     }
   },
-  onLobby: (connected, required) => {
-    clientNetState.lobby = { connected, required };
+  onLobby: (connected, required, roomId) => {
+    clientNetState.lobby = { connected, required, roomId };
+    maybeJoinPrivateRoute({ sendIntent, hideError, showError });
   },
   onLog: (text, color) => {
     addGameLog(text, color);
@@ -145,6 +148,7 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
 
     if (state.gameOver) {
       clientUIState.phase = "GAME_OVER";
+      handleLobbyRouteState(sendIntent);
       return;
     }
 
@@ -160,6 +164,8 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
       hoveredHex = null;
       clientUIState.selectedBuilding = null;
     }
+
+    handleLobbyRouteState(sendIntent);
   }
 });
 

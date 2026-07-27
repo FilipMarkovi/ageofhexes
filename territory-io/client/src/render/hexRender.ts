@@ -73,8 +73,8 @@ export function drawHexBatch(
         ctx.fill();
         ctx.restore(); 
       } else {
-        if (tileTerrain === "DESERT") ctx.fillStyle = "#e6b575";
-        else if (tileTerrain === "MOUNTAIN") ctx.fillStyle = "#525252";
+        if (tileTerrain === "DESERT") ctx.fillStyle = "#af8246";
+        else if (tileTerrain === "MOUNTAIN") ctx.fillStyle = "#424242";
         else if (tileTerrain === "WATER") ctx.fillStyle = "#1561b9";
         else ctx.fillStyle = "#58853e";
         ctx.fill();
@@ -461,10 +461,10 @@ export function getTileColor(
     color = owner.color;
   }
 
-  if (tile.defense > 1) {
-    if (owner) color = darken(owner.color, 0.75);
-    else color = "#202020ff";
-  }
+  //if (tile.defense > 1) {
+  //  if (owner) color = darken(owner.color, 0.75);
+  //  else color = "#202020ff";
+  //}
 
   let fillAlpha = FILL_ALPHA;
   if (isCutOff) {

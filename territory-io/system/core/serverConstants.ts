@@ -10,22 +10,22 @@ export const TERRAIN_BASE_DEFENSE: Record<TerrainType, number> = {
 };
 
 export const PLAYER_COLORS = [
-  "#ef4444", // 1. Crimson Red
+  "#ff4949", // 1. Crimson Red
   "#3b4ef6", // 2. Bright Royal Blue
-  "#22c55e", // 3. Neon Emerald Green
+  "#25dd68", // 3. Neon Emerald Green
   "#eab308", // 4. Vibrant Gold / Yellow
   "#a855f7", // 5. Deep Purple
   "#f97316", // 6. Bright Orange
   "#06b6d4", // 7. Electric Cyan / Light Blue
-  "#ec4899", // 8. Hot Pink
-  "#84cc16", // 9. Lime Green
-  "#d946ef", // 10. Magenta / Orchid
-  "#007fb1", // 11. Teal
-  "#f43f5e", // 12. Raspberry Red
-  "#6366f1", // 13. Indigo
-  "#fa3f15", // 14. Bright Lemon Yellow
-  "#38bdf8", // 15. Sky Blue
-  "#f99d52", // 16. Pastel Apricot / Peach
+  "#ff49a4", // 8. Hot Pink
+  "#79a13c", // 9. Lime Green
+  "#871f97", // 10. Dark Magenta
+  "#f0df4b", // 11. Bright Lemon Yellow
+  "#a30000", // 12. Raspberry Red
+  "#8be5f5", // 13. Indigo
+  "#ff92f0", // 14. Bright Lemon Yellow
+  "#1ea571", // 15. Sky Blue
+  "#675dff", // 16. Pastel Apricot / Peach
 ];
 
 export const MIN_HQ_DISTANCE = 3;

@@ -5,6 +5,7 @@ import { setupAuthAndUsername } from "./auth.js";
 import { fetchLeaderboard } from "./leaderboard.js";
 import { getLobbyRefs, lobbyRuntime, setLobbyRefs } from "./state.js";
 import { handlePrivateLobbyUpdate as handlePrivateLobbyUpdateInternal, setPrivateView } from "./privateLobby.js";
+import { handleRouteChange, handleTopTabNavigation, initLobbyRouting, maybeJoinPrivateRoute, setLobbyTopTab, syncRouteFromState } from "./routes.js";
 import type { LeaderboardCategory, PrivateLobbyUpdateMessage } from "./types.js";
 import { setGuestName } from "./helpers.js";
 import { USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
@@ -37,46 +38,32 @@ function createIntroLoadingScreen() {
 
 function createLobbyMarkup(): string {
   return `
-    <div style="font:700 36px system-ui; margin-bottom: 4px;">Play AgeOfHexes</div>
+    <div id="lobby-screen" style="display:flex; flex-direction:column; align-items:center; gap:12px; width:min(340px, calc(100vw - 32px));">
+      <div style="font:700 36px system-ui; margin-bottom: 4px; text-align:center;">Play AgeOfHexes</div>
 
-    <input id="name"
-      placeholder="username"
-      style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#0f172a;color:white;min-width:260px;text-align:center;font-weight:600;" />
+      <input id="name"
+        placeholder="username"
+        style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#0f172a;color:white;min-width:260px;text-align:center;font-weight:600; width:100%; max-width:320px; box-sizing:border-box;" />
 
-    <div id="main-lobby-view" style="display:flex; flex-direction:column; gap:8px; width:260px;">
-      <button id="play"
-        style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#2563eb;color:white;cursor:pointer;width:100%;font-weight:600;font-size:15px;">
-        Quick Play
-      </button>
-
-      <div style="display:flex; gap:8px;">
-        <button id="btn-show-create"
-          style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; cursor:pointer; font-weight:600; font-size:12px;">
-          Host Room
+      <div id="main-lobby-view" style="display:flex; flex-direction:column; gap:8px; width:100%; max-width:320px;">
+        <button id="play"
+          style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#2563eb;color:white;cursor:pointer;width:100%;font-weight:600;font-size:15px;">
+          Quick Play
         </button>
-        <button id="btn-show-join"
-          style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; cursor:pointer; font-weight:600; font-size:12px;">
-          Join Code
-        </button>
-      </div>
-    </div>
 
-    <div id="leaderboard-view" style="display:flex; flex-direction:column; gap:8px; width:300px; background:#0f172a; padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); position:absolute; left:30px; top:30%;">
-      <div style="font:600 16px system-ui; text-align:center; color: #38bdf8;">Leaderboard</div>
-
-      <div id="leaderboard-tabs" style="display:flex; gap:4px; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 8px;">
-        <button data-cat="wins" title="Wins" style="flex:1; padding:6px 4px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer; font:600 10px system-ui;">Wins</button>
-        <button data-cat="games_played" title="Games Played" style="flex:1; padding:6px 4px; border:none; border-radius:6px; background:#2563eb; color:white; cursor:pointer; font:600 10px system-ui;">Games Played</button>
-        <button data-cat="players_eliminated" title="Players Eliminated" style="flex:1; padding:6px 4px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer; font:600 10px system-ui;">Eliminations</button>
-        <button data-cat="tiles_captured" title="Tiles Captured" style="flex:1; padding:6px 4px; border:none; border-radius:6px; background:transparent; color:#94a3b8; cursor:pointer; font:600 10px system-ui;">Tiles Captured</button>
+        <div style="display:flex; gap:8px;">
+          <button id="btn-show-create"
+            style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; cursor:pointer; font-weight:600; font-size:12px;">
+            Host Room
+          </button>
+          <button id="btn-show-join"
+            style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; cursor:pointer; font-weight:600; font-size:12px;">
+            Join Code
+          </button>
+        </div>
       </div>
 
-      <ul id="leaderboard-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; min-height: 180px;">
-        <div style="text-align:center; padding: 20px; color: #94a3b8; font: 12px system-ui;">Loading...</div>
-      </ul>
-    </div>
-
-    <div id="create-private-view" style="display:none; flex-direction:column; gap:10px; width:260px; background:#0f172a; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1);">
+      <div id="create-private-view" style="display:none; flex-direction:column; gap:10px; width:100%; max-width:320px; background:#0f172a; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-sizing:border-box;">
       <div style="font:600 16px system-ui; text-align:center;">Host Private Room</div>
 
       <label style="display:flex; align-items:center; justify-content:space-between; font:13px system-ui; color:#cbd5e1; gap:8px;">
@@ -106,9 +93,9 @@ function createLobbyMarkup(): string {
         style="padding:6px; border-radius:8px; border:none; background:transparent; color:#94a3b8; cursor:pointer; font:12px system-ui;">
         Cancel
       </button>
-    </div>
+      </div>
 
-    <div id="join-private-view" style="display:none; flex-direction:column; gap:10px; width:260px; background:#0f172a; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1);">
+      <div id="join-private-view" style="display:none; flex-direction:column; gap:10px; width:100%; max-width:320px; background:#0f172a; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-sizing:border-box;">
       <div style="font:600 16px system-ui; text-align:center;">Join Private Room</div>
 
       <input id="input-room-code"
@@ -124,9 +111,9 @@ function createLobbyMarkup(): string {
         style="padding:6px; border-radius:8px; border:none; background:transparent; color:#94a3b8; cursor:pointer; font:12px system-ui;">
         Cancel
       </button>
-    </div>
+      </div>
 
-    <div id="in-private-view" style="display:none; flex-direction:column; gap:12px; width:280px; background:#0f172a; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1);">
+      <div id="in-private-view" style="display:none; flex-direction:column; gap:12px; width:100%; max-width:340px; background:#0f172a; padding:16px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-sizing:border-box;">
       <div style="text-align:center;">
         <div style="font:500 12px system-ui; color:#94a3b8; letter-spacing:1px; text-transform:uppercase;">Room Code</div>
         <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:2px;">
@@ -153,10 +140,28 @@ function createLobbyMarkup(): string {
         style="padding:8px; border-radius:8px; border:1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.1); color:#fca5a5; cursor:pointer; font-weight:600; font-size:12px;">
         Leave Room
       </button>
+      </div>
+
+      <div id="private-error-msg" style="color:#f87171; font:12px system-ui; display:none; text-align:center; max-width:260px;"></div>
+      <div id="status" style="opacity:0.9;font:14px system-ui;margin-top:4px; text-align:center;"></div>
     </div>
 
-    <div id="private-error-msg" style="color:#f87171; font:12px system-ui; display:none; text-align:center; max-width:260px;"></div>
-    <div id="status" style="opacity:0.9;font:14px system-ui;margin-top:4px;"></div>
+    <div id="leaderboard-screen" style="display:none; flex-direction:column; gap:12px; width:min(560px, calc(100vw - 32px)); background:#0f172a; padding:18px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-sizing:border-box; box-shadow:0 18px 40px rgba(0,0,0,0.32);">
+      <div style="font:700 24px system-ui; text-align:center; color:#38bdf8;">Leaderboard</div>
+
+      <div id="leaderboard-view" style="display:flex; flex-direction:column; gap:10px; width:100%;">
+        <div id="leaderboard-tabs" style="display:flex; gap:6px; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 6px; border-radius: 10px;">
+          <button data-cat="wins" title="Wins" style="flex:1; padding:8px 6px; border:none; border-radius:8px; background:#2563eb; color:white; cursor:pointer; font:600 12px system-ui;">Wins</button>
+          <button data-cat="games_played" title="Games Played" style="flex:1; padding:8px 6px; border:none; border-radius:8px; background:transparent; color:#94a3b8; cursor:pointer; font:600 12px system-ui;">Games Played</button>
+          <button data-cat="players_eliminated" title="Players Eliminated" style="flex:1; padding:8px 6px; border:none; border-radius:8px; background:transparent; color:#94a3b8; cursor:pointer; font:600 12px system-ui;">Eliminations</button>
+          <button data-cat="tiles_captured" title="Tiles Captured" style="flex:1; padding:8px 6px; border:none; border-radius:8px; background:transparent; color:#94a3b8; cursor:pointer; font:600 12px system-ui;">Tiles Captured</button>
+        </div>
+
+        <ul id="leaderboard-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; min-height: 320px;">
+          <div style="text-align:center; padding: 28px; color: #94a3b8; font: 500 14px system-ui;">Loading...</div>
+        </ul>
+      </div>
+    </div>
   `;
 }
 
@@ -244,6 +249,10 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
   topBarRoot.innerHTML = `
     <div style="font:700 18px system-ui; letter-spacing: 0.5px;">AgeOfHexes.io</div>
+    <div style="display:flex; align-items:center; justify-content:center; gap:6px; padding:4px; border-radius:10px; background:rgba(255,255,255,0.05);">
+      <button id="top-tab-lobby" style="padding:7px 12px; border:none; border-radius:8px; background:rgba(37, 99, 235, 0.9); color:white; cursor:pointer; font:600 13px system-ui;">Lobby</button>
+      <button id="top-tab-leaderboard" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Leaderboard</button>
+    </div>
     <div id="top-bar-auth" style="position: relative;"></div>
   `;
 
@@ -325,6 +334,10 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     lobbyRoot,
     returnRoot,
     endResultTextEl,
+    lobbyTabBtn: topBarRoot.querySelector("#top-tab-lobby") as HTMLButtonElement,
+    leaderboardTabBtn: topBarRoot.querySelector("#top-tab-leaderboard") as HTMLButtonElement,
+    lobbyScreenEl: lobbyRoot.querySelector("#lobby-screen") as HTMLDivElement,
+    leaderboardScreenEl: lobbyRoot.querySelector("#leaderboard-screen") as HTMLDivElement,
     playBtn: lobbyRoot.querySelector("#play") as HTMLButtonElement,
     inputEl: lobbyRoot.querySelector("#name") as HTMLInputElement,
     statusEl: lobbyRoot.querySelector("#status") as HTMLDivElement,
@@ -350,7 +363,15 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   setLobbyRefs(refs);
   refs.inputEl.maxLength = 15;
 
-  setupAuthAndUsername(sendIntent);
+  initLobbyRouting({ sendIntent, hideError, showError });
+
+  refs.lobbyTabBtn.onclick = () => handleTopTabNavigation("LOBBY", { sendIntent, hideError, showError });
+  refs.leaderboardTabBtn.onclick = () => handleTopTabNavigation("LEADERBOARD", { sendIntent, hideError, showError });
+
+  setupAuthAndUsername(sendIntent).finally(() => {
+    lobbyRuntime.isAuthResolved = true;
+    maybeJoinPrivateRoute({ sendIntent, hideError, showError });
+  });
   fetchLeaderboard("wins");
 
   refs.leaderboardTabsEl.querySelectorAll("button").forEach((btn) => {
@@ -364,10 +385,12 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     if (clientUIState.phase === "QUEUED") {
       sendIntent({ type: "LEAVE_QUEUE" });
       clientUIState.phase = "LOBBY";
+      setLobbyTopTab("LOBBY");
       refs.playBtn.disabled = false;
       refs.playBtn.style.opacity = "1";
       refs.playBtn.textContent = "Quick Play";
       refs.inputEl.disabled = lobbyRuntime.isUserAuthenticated;
+      syncRouteFromState();
       return;
     }
 
@@ -376,6 +399,8 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
     clientUIState.username = name;
     clientUIState.phase = "QUEUED";
+    clientNetState.roomId = clientNetState.lobby.roomId;
+    clientNetState.privateRoomCode = null;
 
     const savedName = localStorage.getItem(USERNAME_STORAGE_KEY);
     if (!savedName || savedName !== name) {
@@ -388,12 +413,19 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     refs.playBtn.textContent = "Cancel Queue";
 
     sendIntent({ type: "JOIN_QUEUE", username: name });
+    syncRouteFromState();
   };
 
   lobbyRoot.querySelector("#btn-show-create")?.addEventListener("click", () => setPrivateView("CREATE_PRIVATE", hideError));
   lobbyRoot.querySelector("#btn-show-join")?.addEventListener("click", () => setPrivateView("JOIN_PRIVATE", hideError));
-  lobbyRoot.querySelector("#btn-cancel-create")?.addEventListener("click", () => setPrivateView("MAIN", hideError));
-  lobbyRoot.querySelector("#btn-cancel-join")?.addEventListener("click", () => setPrivateView("MAIN", hideError));
+  lobbyRoot.querySelector("#btn-cancel-create")?.addEventListener("click", () => {
+    setPrivateView("MAIN", hideError);
+    syncRouteFromState();
+  });
+  lobbyRoot.querySelector("#btn-cancel-join")?.addEventListener("click", () => {
+    setPrivateView("MAIN", hideError);
+    syncRouteFromState();
+  });
 
   lobbyRoot.querySelector("#btn-confirm-create")?.addEventListener("click", () => {
     const name = getValidName();
@@ -411,6 +443,8 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
     hideError();
     clientUIState.username = name;
+    clientNetState.privateRoomCode = null;
+    clientNetState.roomId = null;
 
     sendIntent({
       type: "CREATE_PRIVATE_ROOM",
@@ -433,6 +467,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
     hideError();
     clientUIState.username = name;
+    clientNetState.privateRoomCode = code;
 
     sendIntent({
       type: "JOIN_PRIVATE_ROOM",
@@ -459,17 +494,24 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
   lobbyRoot.querySelector("#btn-leave-private")?.addEventListener("click", () => {
     sendIntent({ type: "LEAVE_PRIVATE_ROOM" });
+    clientNetState.roomId = null;
+    clientNetState.privateRoomCode = null;
     setPrivateView("MAIN", hideError);
+    syncRouteFromState();
   });
 
   returnButton.onclick = () => {
     sendIntent({ type: "RETURN_LOBBY" });
     clientNetState.state = null;
+    clientNetState.roomId = null;
+    clientNetState.privateRoomCode = null;
     clientUIState.phase = "LOBBY";
     clientUIState.selectedBuilding = null;
     clientUIState.selectedAbility = null;
+    setLobbyTopTab("LOBBY");
     setPrivateView("MAIN", hideError);
     refs.returnRoot.style.display = "none";
+    syncRouteFromState();
   };
 
   window.addEventListener("click", (e) => {
@@ -541,8 +583,18 @@ export function updateLobbyUI() {
   } else {
     refs.returnRoot.style.display = "none";
   }
+
+  syncRouteFromState();
 }
 
 export function handlePrivateLobbyUpdate(msg: PrivateLobbyUpdateMessage) {
+  clientNetState.roomId = msg.roomId;
+  clientNetState.privateRoomCode = msg.code;
+  lobbyRuntime.pendingPrivateJoin = null;
   handlePrivateLobbyUpdateInternal(msg, hideError);
+  syncRouteFromState();
+}
+
+export function handleLobbyRouteState(sendIntent: (intent: any) => void) {
+  handleRouteChange({ sendIntent, hideError, showError });
 }

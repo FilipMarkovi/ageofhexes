@@ -19,6 +19,7 @@ import { runBots } from "./ai/botManager.js";
 import { handleQueueBots, fillRoomWithBots, cancelQueueBots } from "./ai/queueBotManager.js";
 import { PlayerId } from "../../shared/index.js";
 import express from "express";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { supabase } from './database/db.js';
@@ -37,14 +38,22 @@ const server =app.listen(PORT, HOST, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
+const clientDistPath = path.resolve(process.cwd(), "client/dist");
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get(["/", "/leaderboard", "/privatelobby", "/match"], (_req, res) => {
+    res.sendFile(path.join(clientDistPath, "index.html"));
+  });
+}
+
 
 type ClientMsg =
   | { type: "INTENT"; intent: any }
   | { type: "AUTH", token: string, };
 
 export type ServerMsg =
-  | { type: "WELCOME"; playerId: string; requiredPlayers: number }
-  | { type: "LOBBY"; connected: number; required: number }
+  | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
+  | { type: "LOBBY"; connected: number; required: number; roomId: string }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
   | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number };
 
@@ -181,7 +190,8 @@ export function broadcastLobby() {
   const msg = JSON.stringify({
     type: "LOBBY",
     connected: queuedCount(room),
-    required: room.maxPlayers
+    required: room.maxPlayers,
+    roomId: room.id
   });
 
   for (const ws of sockets.values()) {
@@ -454,11 +464,12 @@ wss.on("connection", (ws, req) => {
   const playerId = crypto.randomUUID();
   sockets.set(playerId, ws);
   const room = getQueueRoom()
-  ws.send(JSON.stringify({ type: "WELCOME", playerId, requiredPlayers: room.maxPlayers } satisfies ServerMsg));
+  ws.send(JSON.stringify({ type: "WELCOME", playerId, requiredPlayers: room.maxPlayers, roomId: room.id } satisfies ServerMsg));
   ws.send(JSON.stringify({
     type: "LOBBY",
     connected: queuedCount(getQueueRoom()),
-    required: room.maxPlayers
+    required: room.maxPlayers,
+    roomId: room.id
   }));
 
   ws.on("message", async (buf) => {
@@ -949,6 +960,7 @@ export function broadcastPrivateRoomLobby(room: GameRoom) {
     if (ws && ws.readyState === ws.OPEN) {
       const payload = JSON.stringify({
         type: "PRIVATE_LOBBY",
+        roomId: room.id,
         connected: queuedCount(room),
         required: room.maxPlayers,
         code: room.privateSettings.code,

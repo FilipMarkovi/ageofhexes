@@ -11,7 +11,6 @@ export function setPrivateView(view: PrivateViewMode, hideError: () => void) {
   refs.createPrivateContainer.style.display = view === "CREATE_PRIVATE" ? "flex" : "none";
   refs.joinPrivateContainer.style.display = view === "JOIN_PRIVATE" ? "flex" : "none";
   refs.inPrivateLobbyContainer.style.display = view === "IN_PRIVATE_LOBBY" ? "flex" : "none";
-  refs.leaderboardContainer.style.display = view === "MAIN" ? "flex" : "none";
 }
 
 export function handlePrivateLobbyUpdate(msg: PrivateLobbyUpdateMessage, hideError: () => void) {

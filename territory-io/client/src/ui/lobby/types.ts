@@ -1,5 +1,7 @@
 export type PrivateViewMode = "MAIN" | "CREATE_PRIVATE" | "JOIN_PRIVATE" | "IN_PRIVATE_LOBBY";
 
+export type LobbyTopTab = "LOBBY" | "LEADERBOARD";
+
 export type LeaderboardCategory = "wins" | "games_played" | "players_eliminated" | "tiles_captured";
 
 export interface LeaderboardEntry {
@@ -9,6 +11,7 @@ export interface LeaderboardEntry {
 }
 
 export interface PrivateLobbyUpdateMessage {
+  roomId: string;
   code: string;
   connected: number;
   required: number;
