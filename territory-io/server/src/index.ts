@@ -185,7 +185,7 @@ function queuedCount(room: GameRoom) {
   return [...room.state.players.values()].filter(p => p.status === "QUEUED").length;
 }
 
-export function broadcastLobby() {
+export function broadcastLobby(pid: PlayerId | null = null) {
   const room = getQueueRoom();
   const msg = JSON.stringify({
     type: "LOBBY",
@@ -194,8 +194,16 @@ export function broadcastLobby() {
     roomId: room.id
   });
 
-  for (const ws of sockets.values()) {
-    if (ws.readyState === ws.OPEN) ws.send(msg);
+  // If a specific player ID is provided, send only to that player; otherwise, broadcast to all connected sockets
+  if (pid && sockets.has(pid)) {
+    const ws = sockets.get(pid);
+    if (ws && ws.readyState === ws.OPEN) {
+      ws.send(msg);
+    }
+  } else {
+    for (const ws of sockets.values()) {
+      if (ws.readyState === ws.OPEN) ws.send(msg);
+    }
   }
 }
 
@@ -283,7 +291,7 @@ function handleReturnToLobby(pid: PlayerId) {
   player.status = "LOBBY";
 
   broadcastRoomState(room);
-  broadcastLobby();
+  broadcastLobby(pid);
   checkGameOver(state);
 }
 
@@ -369,7 +377,7 @@ function destroyRoomSoon(roomId: RoomId) {
       }
       rooms.delete(roomId);
       broadcastLobby();
-    }, 2000);
+    }, 1000);
   });
 }
 
@@ -703,15 +711,14 @@ wss.on("connection", (ws, req) => {
     authSessions.delete(playerId);
 
     const rid = playerRoom.get(playerId);
-    if (!rid) {
-      broadcastLobby();
+    if (!rid) 
       return;
-    }
 
     const room = rooms.get(rid);
     if (!room) {
       playerRoom.delete(playerId);
-      broadcastLobby();
+      if (rid === queueRoomId)
+        broadcastLobby();
       return;
     }
 
@@ -857,7 +864,6 @@ function startPrivateMatch(room: GameRoom) {
   room.lastTickMs = Date.now();
 
   broadcastRoomState(room);
-  broadcastLobby();
 }
 
 export function handlePlayerLeavePrivateRoom(playerId: PlayerId) {

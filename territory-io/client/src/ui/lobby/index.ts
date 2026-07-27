@@ -144,6 +144,15 @@ function createLobbyMarkup(): string {
 
       <div id="private-error-msg" style="color:#f87171; font:12px system-ui; display:none; text-align:center; max-width:260px;"></div>
       <div id="status" style="opacity:0.9;font:14px system-ui;margin-top:4px; text-align:center;"></div>
+
+      <div id="disclaimer" style="margin-top: 24px; display: flex; flex-direction: column; gap: 8px; max-width: 320px; text-align: center; font-family: system-ui, -apple-system, sans-serif; pointer-events: none;">
+        <div style="font-size: 11px; color: rgba(255, 255, 255, 0.45); line-height: 1.4;">
+          The game is still in active development, for any suggestions, feedback and/or bug reports join the discord server.
+        </div>
+        <div style="font-size: 10px; color: rgba(248, 113, 113, 0.45); line-height: 1.4; font-style: italic;">
+          Game currently uses a free server, if you see 0/0 players in lobby press quick play and wait for 10 seconds and then refresh the page to wake up the server
+        </div>
+      </div>
     </div>
 
     <div id="leaderboard-screen" style="display:none; flex-direction:column; gap:12px; width:min(560px, calc(100vw - 32px)); background:#0f172a; padding:18px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-sizing:border-box; box-shadow:0 18px 40px rgba(0,0,0,0.32);">
@@ -248,8 +257,15 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   topBarRoot.style.boxSizing = "border-box";
 
   topBarRoot.innerHTML = `
-    <div style="font:700 18px system-ui; letter-spacing: 0.5px;">AgeOfHexes.io</div>
-    <div style="display:flex; align-items:center; justify-content:center; gap:6px; padding:4px; border-radius:10px; background:rgba(255,255,255,0.05);">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="font:700 18px system-ui; letter-spacing: 0.5px;">AgeOfHexes.io</div>
+      <a href="https://discord.gg/u394JnfrjY" target="_blank" title="Join Discord" style="display:flex; align-items:center; padding:6px; border-radius:8px; background:rgba(255,255,255,0.05); color:white; text-decoration:none; transition: background 0.2s;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 11.74 11.74 0 0 0-.617-1.25.077.077 0 0 0-.079-.037 19.736 19.736 0 0 0-4.885 1.515.069.069 0 0 0-.032.027C.533 9.048-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"></path>
+        </svg>
+      </a>
+    </div>
+    <div style="position: absolute; left: 50%; transform: translateX(-50%); display:flex; align-items:center; justify-content:center; gap:6px; padding:4px; border-radius:10px; background:rgba(255,255,255,0.05);">
       <button id="top-tab-lobby" style="padding:7px 12px; border:none; border-radius:8px; background:rgba(37, 99, 235, 0.9); color:white; cursor:pointer; font:600 13px system-ui;">Lobby</button>
       <button id="top-tab-leaderboard" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Leaderboard</button>
     </div>

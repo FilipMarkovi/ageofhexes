@@ -58,4 +58,5 @@ activate all maps, implement global leaderboard in lobby, rebrand player colors 
 add option to cancel/leave public lobby queue, add surrender button which instantly 
 self eliminates the player
 27.7.2026. - redesign system notifications on client, allow username change for authed users (enforces unique username), add secondary
-AI decision function, implement simple anti multitab, saving used username for unauthed players on client, add deep links
+AI decision function, implement simple anti multitab, saving used username for unauthed players on client, add deep links,
+discord invite button, license
