@@ -533,8 +533,14 @@ export function updateLobbyUI() {
   refs.topBarRoot.style.display = showTopBar ? "flex" : "none";
   refs.playBtn.textContent = clientUIState.phase === "QUEUED" ? "Cancel Queue" : "Quick Play";
 
+  const isLobby = clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED";
   refs.lobbyRoot.style.display =
-    !state?.gameOver && (clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED") ? "flex" : "none";
+    !state?.gameOver && isLobby ? "flex" : "none";
+
+  const copyrightEl = document.getElementById("copyright");
+  if (copyrightEl) {
+    copyrightEl.style.display = isLobby ? "block" : "none";
+  }
 
   if (!lobby) {
     refs.statusEl.textContent = "Connecting...";

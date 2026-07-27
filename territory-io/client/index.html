@@ -3,12 +3,25 @@
 <head>
   <title>AgeOfHexes.io</title>
   <style>
-    body { margin: 0; background: #111; color: white; }
+    body { margin: 0; background: #111; color: white; overflow: hidden; }
     canvas { display: block; }
+    #copyright {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+      z-index: 200;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
+  <div id="copyright"> &copy; 2026 Age of Hexes&trade;. All rights reserved.</div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
