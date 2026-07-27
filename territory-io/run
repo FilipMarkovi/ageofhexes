@@ -1,3 +1,0 @@
-npm run build
-npm --prefix server run dev
-cloudflared tunnel --url http://localhost:6767

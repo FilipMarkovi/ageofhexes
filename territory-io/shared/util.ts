@@ -63,10 +63,10 @@ export function calculateCaptureRate(
   // Base time in seconds (Defense divided by CAPTURE_RATE constant)
   const baseSeconds = Math.max(1, tileDefense) / CAPTURE_RATE;
 
-  // Extra time based on the TARGET'S territory (max 1s penalty at 45+ tiles)
+  // Extra time based on the TARGET'S territory
   // If neutral tile (owner is null/undefined), targetTerritorySize is 0 → extraSeconds = 0
   const territoryRatio = Math.min(1.0, targetTerritorySize / TILES_UNTIL_MAX_ATTACKTIME_INCREASE);
-  const extraSeconds = territoryRatio * MAX_ATTACKTIME_INCREASE; // MAX_ATTACKTIME_INCREASE = 1.0
+  const extraSeconds = territoryRatio * MAX_ATTACKTIME_INCREASE;
 
   // Apply attack speed buff of the ATTACKER (divides overall duration)
   const totalDurationSeconds = (baseSeconds + extraSeconds) / Math.max(0.1, speedBoost);

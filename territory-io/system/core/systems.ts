@@ -394,6 +394,7 @@ export function tick(state: CoreGameState, dt: number) {
           if (action.building === "FORT") {
             recalcDefense(state);
           }
+          sendPlayerLog(tileOwner.id, `Construction of ${action.building} completed`, "#1f6ce0");
         } 
         else if (action.actionType === "DEMOLISHING") {
           // Calculate refund values & decrement building counters upon completion
@@ -409,6 +410,7 @@ export function tick(state: CoreGameState, dt: number) {
           // Clear out layout references
           t.building = null;
           recalcDefense(state);
+          sendPlayerLog(tileOwner.id, `Demolition of ${action.building} completed`, "#1f6ce0");
         }
       }
 
@@ -418,7 +420,6 @@ export function tick(state: CoreGameState, dt: number) {
 
     const set = state.connectedCache.get(t.ownerId);
     if (!set) continue;
-
     if (!set.has(key(t.q, t.r))) continue; // CUT OFF
 
     ownedCount.set(t.ownerId, (ownedCount.get(t.ownerId) ?? 0) + 1);

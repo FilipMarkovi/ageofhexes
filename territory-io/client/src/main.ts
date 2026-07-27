@@ -22,12 +22,18 @@ import { initKeyboard } from "./input/keyboard.js";
 import { initBuildButtons, updateBuildButtons } from "./ui/buildButtons.js";
 import { getConnectedTilesFromHQ_Client } from "./utils/supply.js";
 import { drawTileInfo } from "./ui/tileInfo.js";
-import { handlePrivateLobbyUpdate, initLobbyUI, showError, updateLobbyUI } from "./ui/lobby/index.js";
+import { handlePrivateLobbyUpdate, initLobbyUI, showError, showSuccess, updateLobbyUI } from "./ui/lobby/index.js";
 import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
 import { initPlacementTimerUI,updatePlacementTimerUI } from "./ui/placementTimer.js";
 import { clearAbilityMode } from "./ui/abilityMode.js";
 import { supabase } from "./utils/db.js";
+import { initAntiMultiTab } from "./utils/antiMultiTab.js";
+import { setupAuthAndUsername } from "./ui/lobby/auth.js";
+
+if (!(await initAntiMultiTab())) {
+  throw new Error("Another AgeOfHexes tab is already running.");
+}
 
 let mouseDownPos: { x: number; y: number } | null = null;
 let didDrag = false;
@@ -67,6 +73,40 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
   },
   onPrivateError: (reason) => {
     showError(reason);
+  },
+  onAuthSuccess: (username) => {
+    if (username) {
+      showSuccess(`Signed in as ${username}`);
+    }
+  },
+  onAuthFailure: (reason) => {
+    showError(reason ?? "Authentication failed.");
+  },
+  onUsernameChangeResult: async (msg) => {
+    if (msg.success) {
+      const nextUsername = msg.username ?? "your new name";
+      addGameLog(`Username changed to ${nextUsername}`, "#4ade80");
+      showSuccess(`Username changed to ${nextUsername}`);
+      await setupAuthAndUsername(sendIntent);
+      return;
+    }
+
+    if (msg.reason === "USERNAME_TAKEN") {
+      showError("That username is already taken.");
+      return;
+    }
+
+    if (msg.reason === "INVALID_USERNAME") {
+      showError("Username must be between 1 and 15 characters.");
+      return;
+    }
+
+    if (msg.reason === "NOT_AUTHED") {
+      showError("Sign in first before changing username.");
+      return;
+    }
+
+    showError("Failed to change username. Please try again.");
   },
   onState: (state) => {
     clientNetState.state = state;

@@ -1,6 +1,7 @@
 import type { CoreGameState, TileState } from "../../../shared/index.js";
 import { DEFEND_COST_RATIO, DEFENSE_HEAT_DECAY_MS, DEFENSE_COST_INCREMENT } from "../../../shared/constants.js";
 import { getServerNow } from "../utils/time.js";
+import { connectedByPlayer } from "../main.js";
 
 export function drawTileInfo(
   ctx: CanvasRenderingContext2D,
@@ -114,12 +115,9 @@ export function drawTileInfo(
       { label: "OWNER", value: ownerName, color: ownerColor }
     ];
 
-    if (!isMine) {
-      playerLines.push({ label: "ARMY", value: Math.round(owner.army).toLocaleString(), color: "#ef4444" });
-      playerLines.push({ label: "GOLD", value: Math.round(owner.gold).toLocaleString(), color: "#fbbf24" });
-    } else {
-      playerLines.push({ label: "EMPIRE", value: "YOUR TERRITORY", color: "#60a5fa" });
-    }
+    playerLines.push({ label: "ARMY", value: Math.round(owner.army).toLocaleString(), color: "#ef4444" });
+    playerLines.push({ label: "GOLD", value: Math.round(owner.gold).toLocaleString(), color: "#fbbf24" });
+    playerLines.push({ label: "TERRITORY SIZE", value: `${connectedByPlayer.get(owner.id)?.size ?? 0}`, color: "#9ca3af" });
 
     let playerCardHeight = padding * 2 + playerLines.length * lineHeight;
     const hasPlayerEffects = owner.effects && owner.effects.length > 0;

@@ -2,7 +2,7 @@
 
 import type { GameRoom } from "../util/rooms.js";
 import { applyIntent } from "../../../system/index.js";
-import { smartAI } from "./simpleExpandBot.js";
+import { deadlyAI } from "./simpleExpandBot.js";
 
 const botCooldowns = new Map<string, number>();
 
@@ -22,7 +22,7 @@ export function runBots(room: GameRoom) {
 
     // 80% chance to attempt an action execution
     if (Math.random() < 0.8) {
-      const intent = smartAI(room.state, pid);
+      const intent = deadlyAI(room.state, pid);
       if (intent) {
         applyIntent(room.state, pid, intent);
       }

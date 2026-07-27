@@ -29,7 +29,7 @@ class HexEditor:
         control_frame = tk.Frame(root, pady=5)
         control_frame.pack(side=tk.TOP, fill=tk.X, padx=10)
         
-        gen_btn = tk.Button(control_frame, text="⚡ Generate Map Code", command=self.generate_ascii_map, bg="#28a745", fg="white", font=("Arial", 10, "bold"))
+        gen_btn = tk.Button(control_frame, text="Generate Map Code", command=self.generate_ascii_map, bg="#28a745", fg="white", font=("Arial", 10, "bold"))
         gen_btn.pack(side=tk.LEFT, padx=5)
         
         clear_btn = tk.Button(control_frame, text="Clear Grid", command=self.clear_grid)

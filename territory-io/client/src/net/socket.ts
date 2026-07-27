@@ -23,14 +23,24 @@ export type PrivateErrorMsg = {
   reason: string;
 };
 
+export type UsernameChangeResultMsg = {
+  type: "USERNAME_CHANGE_RESULT";
+  success: boolean;
+  username?: string;
+  reason?: string;
+};
+
 export type ServerMsg =
   | { type: "WELCOME"; playerId: string; requiredPlayers: number }
   | { type: "LOBBY"; connected: number; required: number }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
   | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number }
   | { type: "LOG"; text: string; color?: string }
+  | { type: "AUTH_SUCCESS"; username?: string }
+  | { type: "AUTH_FAILURE"; reason?: string }
   | PrivateLobbyMsg
-  | PrivateErrorMsg;
+  | PrivateErrorMsg
+  | UsernameChangeResultMsg;
 
 type ClientMsg =
   | { type: "INTENT"; intent: any }
@@ -41,8 +51,11 @@ export function connect(url: string, handlers: {
   onLobby: (connected: number, required: number) => void;
   onState: (state: any) => void;
   onLog: (text: string, color?: string) => void;
+  onAuthSuccess?: (username?: string) => void;
+  onAuthFailure?: (reason?: string) => void;
   onPrivateLobby?: (msg: PrivateLobbyMsg) => void;
   onPrivateError?: (reason: string) => void;
+  onUsernameChangeResult?: (msg: UsernameChangeResultMsg) => void;
 }) {
   const ws = new WebSocket(url);
   let latestWireState: WireState | null = null;
@@ -75,11 +88,20 @@ export function connect(url: string, handlers: {
       case "LOG":
         handlers.onLog(msg.text, msg.color);
         break;
+      case "AUTH_SUCCESS":
+        handlers.onAuthSuccess?.(msg.username);
+        break;
+      case "AUTH_FAILURE":
+        handlers.onAuthFailure?.(msg.reason);
+        break;
       case "PRIVATE_LOBBY":
         handlers.onPrivateLobby?.(msg);
         break;
       case "PRIVATE_ROOM_ERROR":
         handlers.onPrivateError?.(msg.reason);
+        break;
+      case "USERNAME_CHANGE_RESULT":
+        handlers.onUsernameChangeResult?.(msg);
         break;
     }
   };

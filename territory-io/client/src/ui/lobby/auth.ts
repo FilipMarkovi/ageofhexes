@@ -1,16 +1,14 @@
 import { loginWithGoogle, supabase } from "../../utils/db.js";
-import { getRandomGuestName, escapeHtml } from "./helpers.js";
+import { getOrCreateGuestName, escapeHtml } from "./helpers.js";
 import { getLobbyRefs, lobbyRuntime } from "./state.js";
 
-export async function setupAuthAndUsername() {
+export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
   const refs = getLobbyRefs();
-  
-  // 1. Use getUser() instead of getSession() to validate token authenticity
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   // If user exists and token is valid
   if (user && !userError) {
-    let username = getRandomGuestName();
+    let username = getOrCreateGuestName();
 
     try {
       const { data: profile } = await supabase
@@ -38,7 +36,10 @@ export async function setupAuthAndUsername() {
       <button id="user-menu-trigger" style="background:none; border:none; color:#38bdf8; font:600 14px system-ui; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 8px;">
         ${safeUsername} ▾
       </button>
-      <div id="auth-dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:6px; min-width:120px; box-shadow:0 4px 12px rgba(0,0,0,0.5); overflow:hidden;">
+      <div id="auth-dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:6px; min-width:190px; box-shadow:0 4px 12px rgba(0,0,0,0.5); overflow:hidden;">
+        <button id="change-username-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
+          Change Username
+        </button>
         <button id="logout-btn" style="width:100%; text-align:left; background:none; border:none; color:#ef4444; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
           Log Out
         </button>
@@ -47,11 +48,36 @@ export async function setupAuthAndUsername() {
 
     const trigger = refs.topBarAuthContainer.querySelector("#user-menu-trigger") as HTMLButtonElement;
     const dropdown = refs.topBarAuthContainer.querySelector("#auth-dropdown") as HTMLDivElement;
+    const changeUsernameBtn = refs.topBarAuthContainer.querySelector("#change-username-btn") as HTMLButtonElement;
     const logoutBtn = refs.topBarAuthContainer.querySelector("#logout-btn") as HTMLButtonElement;
 
     trigger.onclick = (e) => {
       e.stopPropagation();
       dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
+    };
+
+    changeUsernameBtn.onmouseenter = () => {
+      changeUsernameBtn.style.background = "rgba(255, 255, 255, 0.08)";
+    };
+    changeUsernameBtn.onmouseleave = () => {
+      changeUsernameBtn.style.background = "none";
+    };
+
+    changeUsernameBtn.onclick = () => {
+      if (!sendIntent) return;
+
+      dropdown.style.display = "none";
+      const current = refs.inputEl.value;
+      const requested = window.prompt("Enter new username (1-15 chars)", current);
+      if (requested === null) return;
+
+      const next = requested.trim();
+      if (next.length < 1 || next.length > 15) {
+        window.alert("Username must be between 1 and 15 characters.");
+        return;
+      }
+
+      sendIntent({ type: "CHANGE_USERNAME", username: next });
     };
 
     logoutBtn.onmouseenter = () => {
@@ -62,15 +88,18 @@ export async function setupAuthAndUsername() {
     };
 
     logoutBtn.onclick = async () => {
+      if (sendIntent) {
+        sendIntent({ type: "LOGOUT" });
+      }
       await supabase.auth.signOut();
-      setupAuthAndUsername();
+      setupAuthAndUsername(sendIntent);
     };
 
     return;
   }
 
   // 2. FALLBACK: Unauthenticated state (Expired token, logged out, or no session)
-  refs.inputEl.value = getRandomGuestName();
+  refs.inputEl.value = getOrCreateGuestName();
   lobbyRuntime.isUserAuthenticated = false;
   refs.inputEl.disabled = false;
   refs.inputEl.style.opacity = "1";

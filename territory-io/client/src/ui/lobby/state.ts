@@ -2,6 +2,7 @@ import type { LeaderboardCategory, LeaderboardEntry, PrivateViewMode } from "./t
 
 export interface LobbyRefs {
   topBarRoot: HTMLDivElement;
+  notificationEl: HTMLDivElement;
   lobbyRoot: HTMLDivElement;
   returnRoot: HTMLDivElement;
   endResultTextEl: HTMLDivElement;
@@ -22,7 +23,6 @@ export interface LobbyRefs {
   privatePlayerListEl: HTMLUListElement;
   privateSettingsDisplayEl: HTMLDivElement;
   startPrivateMatchBtn: HTMLButtonElement;
-  privateErrorEl: HTMLDivElement;
   leaderboardContainer: HTMLDivElement;
   leaderboardTabsEl: HTMLDivElement;
   leaderboardListEl: HTMLUListElement;

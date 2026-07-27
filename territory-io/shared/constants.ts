@@ -14,6 +14,8 @@ export const COLORS = {
   HOVER_BAD: "#a33"
 };
 
+export const USERNAME_STORAGE_KEY = 'ageofhexes_guest_username';
+
 // Effects
 export const EFFECT_COSTS = {
   ATTACK_SPEED: 30 * GOLD_SCALE,

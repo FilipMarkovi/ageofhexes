@@ -6,6 +6,10 @@ import { fetchLeaderboard } from "./leaderboard.js";
 import { getLobbyRefs, lobbyRuntime, setLobbyRefs } from "./state.js";
 import { handlePrivateLobbyUpdate as handlePrivateLobbyUpdateInternal, setPrivateView } from "./privateLobby.js";
 import type { LeaderboardCategory, PrivateLobbyUpdateMessage } from "./types.js";
+import { setGuestName } from "./helpers.js";
+import { USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
+
+let notificationTimer: number | null = null;
 
 function createIntroLoadingScreen() {
   const loadingScreenRoot = document.createElement("div");
@@ -167,15 +171,55 @@ function getValidName(): string | null {
 }
 
 export function showError(msg: string) {
+  showNotice(msg, "error");
+}
+
+export function showSuccess(msg: string) {
+  showNotice(msg, "success");
+}
+
+function showNotice(msg: string, tone: "error" | "success") {
   const refs = getLobbyRefs();
-  refs.privateErrorEl.textContent = msg;
-  refs.privateErrorEl.style.display = "block";
+  const el = refs.notificationEl;
+
+  if (notificationTimer !== null) {
+    window.clearTimeout(notificationTimer);
+    notificationTimer = null;
+  }
+
+  el.textContent = msg;
+  el.style.display = "block";
+  el.style.opacity = "1";
+
+  if (tone === "error") {
+    el.style.background = "rgba(127, 29, 29, 0.93)";
+    el.style.borderColor = "rgba(248, 113, 113, 0.65)";
+    el.style.color = "#fecaca";
+  } else {
+    el.style.background = "rgba(30, 64, 175, 0.93)";
+    el.style.borderColor = "rgba(96, 165, 250, 0.75)";
+    el.style.color = "#dbeafe";
+  }
+
+  notificationTimer = window.setTimeout(() => {
+    el.style.opacity = "0";
+    window.setTimeout(() => {
+      el.style.display = "none";
+    }, 220);
+    notificationTimer = null;
+  }, 5000);
 }
 
 export function hideError() {
   const refs = getLobbyRefs();
-  refs.privateErrorEl.style.display = "none";
-  refs.privateErrorEl.textContent = "";
+  if (notificationTimer !== null) {
+    window.clearTimeout(notificationTimer);
+    notificationTimer = null;
+  }
+
+  refs.notificationEl.style.display = "none";
+  refs.notificationEl.style.opacity = "0";
+  refs.notificationEl.textContent = "";
 }
 
 export function initLobbyUI(sendIntent: (intent: any) => void) {
@@ -205,6 +249,27 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
   document.body.appendChild(topBarRoot);
   const topBarAuthContainer = topBarRoot.querySelector("#top-bar-auth") as HTMLDivElement;
+
+  const notificationEl = document.createElement("div");
+  notificationEl.style.position = "absolute";
+  notificationEl.style.top = "58px";
+  notificationEl.style.left = "50%";
+  notificationEl.style.transform = "translateX(-50%)";
+  notificationEl.style.maxWidth = "min(560px, calc(100vw - 24px))";
+  notificationEl.style.padding = "9px 14px";
+  notificationEl.style.borderRadius = "10px";
+  notificationEl.style.border = "1px solid rgba(255,255,255,0.25)";
+  notificationEl.style.font = "600 13px system-ui";
+  notificationEl.style.letterSpacing = "0.2px";
+  notificationEl.style.display = "none";
+  notificationEl.style.opacity = "0";
+  notificationEl.style.transition = "opacity 0.2s ease";
+  notificationEl.style.boxShadow = "0 10px 28px rgba(0,0,0,0.45)";
+  notificationEl.style.backdropFilter = "blur(6px)";
+  notificationEl.style.textAlign = "center";
+  notificationEl.style.pointerEvents = "none";
+  notificationEl.style.zIndex = "70";
+  document.body.appendChild(notificationEl);
 
   const lobbyRoot = document.createElement("div");
   lobbyRoot.style.position = "absolute";
@@ -256,6 +321,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
   const refs = {
     topBarRoot,
+    notificationEl,
     lobbyRoot,
     returnRoot,
     endResultTextEl,
@@ -276,7 +342,6 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     privatePlayerListEl: lobbyRoot.querySelector("#private-player-list") as HTMLUListElement,
     privateSettingsDisplayEl: lobbyRoot.querySelector("#private-settings-display") as HTMLDivElement,
     startPrivateMatchBtn: lobbyRoot.querySelector("#btn-start-private-match") as HTMLButtonElement,
-    privateErrorEl: lobbyRoot.querySelector("#private-error-msg") as HTMLDivElement,
     leaderboardContainer: lobbyRoot.querySelector("#leaderboard-view") as HTMLDivElement,
     leaderboardTabsEl: lobbyRoot.querySelector("#leaderboard-tabs") as HTMLDivElement,
     leaderboardListEl: lobbyRoot.querySelector("#leaderboard-list") as HTMLUListElement
@@ -285,7 +350,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   setLobbyRefs(refs);
   refs.inputEl.maxLength = 15;
 
-  setupAuthAndUsername();
+  setupAuthAndUsername(sendIntent);
   fetchLeaderboard("wins");
 
   refs.leaderboardTabsEl.querySelectorAll("button").forEach((btn) => {
@@ -311,6 +376,11 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
     clientUIState.username = name;
     clientUIState.phase = "QUEUED";
+
+    const savedName = localStorage.getItem(USERNAME_STORAGE_KEY);
+    if (!savedName || savedName !== name) {
+      setGuestName(name);
+    }
 
     refs.inputEl.disabled = true;
     refs.playBtn.disabled = false;
@@ -375,6 +445,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     const code = refs.roomCodeDisplay.textContent;
     if (code && code !== "-".repeat(ROOM_CODE_LENGTH)) {
       navigator.clipboard.writeText(code);
+      showSuccess("Room code copied.");
       refs.copyCodeBtn.textContent = "✅";
       setTimeout(() => {
         refs.copyCodeBtn.textContent = "📋";

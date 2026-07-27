@@ -50,7 +50,40 @@ export type ServerMsg =
 
 interface AuthenticatedSession {
   dbId: string;      
-  coins: number;      
+  coins: number;
+  username: string;
+}
+
+function resolveJoinUsername(playerId: PlayerId, requestedUsername: string): string {
+  const session = authSessions.get(playerId);
+  if (session?.username) {
+    return session.username;
+  }
+
+  const guestName = typeof requestedUsername === "string" ? requestedUsername.trim() : "";
+  return guestName.length > 0 ? guestName : "Guest";
+}
+
+function applyTrackedUsernameToActiveRoom(playerId: PlayerId, username: string) {
+  const roomId = playerRoom.get(playerId);
+  if (!roomId) return;
+
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  const player = room.state.players.get(playerId);
+  if (!player) return;
+
+  player.username = username;
+
+  if (room.privateSettings && !room.state.started) {
+    broadcastPrivateRoomLobby(room);
+    return;
+  }
+
+  if (room.state.started) {
+    broadcastRoomState(room, true);
+  }
 }
 
 const authSessions = new Map<PlayerId, AuthenticatedSession>();
@@ -159,12 +192,14 @@ export function broadcastLobby() {
 function handleJoinQueue(playerId: PlayerId, username: string) {
   if (playerRoom.has(playerId)) return;
 
+  const effectiveUsername = resolveJoinUsername(playerId, username);
+
   const room = getQueueRoom();
   const color = getNextAvailablePlayerColor(room);
 
   setPlayer(room.state, {
     id: playerId,
-    username,
+    username: effectiveUsername,
     color,
     status: "QUEUED",
     gold: STARTING_GOLD,
@@ -374,6 +409,7 @@ setInterval(() => {
   bot_tick = (bot_tick + 1) % 9;
   
   let currentRoomCount = rooms.size;
+  let currentRealPlayerCount = sockets.size;
   let currentPlayerCount = playerRoom.size;
 
   for (const room of rooms.values()) {
@@ -404,12 +440,7 @@ setInterval(() => {
   if (now - lastMetricsLog >= 30000) {
     const avgTickTime = tickCount > 0 ? (totalTickTimeMs / tickCount).toFixed(2) : "0.00";
     
-    console.log(`[METRICS] --- ${new Date().toISOString()} ---`);
-    console.log(`  Active Rooms:  ${currentRoomCount}`);
-    console.log(`  Total Players: ${currentPlayerCount}`);
-    console.log(`  Avg Tick Time: ${avgTickTime}ms (over ${tickCount} ticks)`);
-    console.log(`--------------------------------------`);
-
+    console.log(`[METRICS] --- ${new Date().toISOString()} | Active Rooms:  ${currentRoomCount} | Total Players: ${currentRealPlayerCount} | Players in Rooms: ${currentPlayerCount} | Avg Tick Time: ${avgTickTime}ms (over ${tickCount} ticks) ---`);
     // Reset metrics for the next minute
     tickCount = 0;
     totalTickTimeMs = 0;
@@ -459,13 +490,22 @@ wss.on("connection", (ws, req) => {
         // Fetch their permanent profile row
         let { data: dbPlayer, error: dbError } = await supabase
           .from('players')
-          .select('id, coins')
+          .select('id, coins, username')
           .eq('id', googleUID)
           .single();
 
+        if (dbError || !dbPlayer) {
+          throw new Error("Missing player profile");
+        }
+
+        const profileUsername = typeof dbPlayer.username === "string" && dbPlayer.username.trim().length > 0
+          ? dbPlayer.username.trim()
+          : "Player";
+
         authSessions.set(playerId, {
           dbId: googleUID,
-          coins: dbPlayer?.coins || 0,
+          coins: dbPlayer.coins || 0,
+          username: profileUsername,
         });
 
         // if player joined room before auth was done
@@ -477,8 +517,10 @@ wss.on("connection", (ws, req) => {
             stats.dbId = googleUID;
           }
         }
+
+        applyTrackedUsernameToActiveRoom(playerId, profileUsername);
         
-        ws.send(JSON.stringify({ type: "AUTH_SUCCESS" }));
+        ws.send(JSON.stringify({ type: "AUTH_SUCCESS", username: profileUsername }));
       } catch (err) {
         ws.send(JSON.stringify({ type: "AUTH_FAILURE", reason: "Authentication failed." }));
       }
@@ -494,6 +536,59 @@ wss.on("connection", (ws, req) => {
         intent.username = intent.username.substring(0, 15);
       }
       handleJoinQueue(playerId, intent.username);
+      return;
+    }
+
+    if (intent.type === "CHANGE_USERNAME") {
+      const socket = sockets.get(playerId);
+      if (!socket || socket.readyState !== socket.OPEN) return;
+
+      const session = authSessions.get(playerId);
+      if (!session) {
+        socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: false, reason: "NOT_AUTHED" }));
+        return;
+      }
+
+      const requested = typeof intent.username === "string" ? intent.username.trim() : "";
+      if (requested.length < 1 || requested.length > 15) {
+        socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: false, reason: "INVALID_USERNAME" }));
+        return;
+      }
+
+      if (requested === session.username) {
+        socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: true, username: session.username }));
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("players")
+        .update({ username: requested })
+        .eq("id", session.dbId)
+        .select("username")
+        .single();
+
+      if (error) {
+        const reason = error.code === "23505" ? "USERNAME_TAKEN" : "UPDATE_FAILED";
+        socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: false, reason }));
+        return;
+      }
+
+      const updatedUsername = typeof data?.username === "string" && data.username.trim().length > 0
+        ? data.username.trim()
+        : requested;
+
+      authSessions.set(playerId, {
+        ...session,
+        username: updatedUsername,
+      });
+
+      applyTrackedUsernameToActiveRoom(playerId, updatedUsername);
+      socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: true, username: updatedUsername }));
+      return;
+    }
+
+    if (intent.type === "LOGOUT") {
+      authSessions.delete(playerId);
       return;
     }
 
@@ -676,10 +771,11 @@ export function handleJoinPrivateRoom(playerId: PlayerId, username: string, code
   }
 
   const color = getNextAvailablePlayerColor(room);
+  const effectiveUsername = resolveJoinUsername(playerId, username);
 
   setPlayer(room.state, {
     id: playerId,
-    username,
+    username: effectiveUsername,
     color,
     status: "QUEUED",
     gold: STARTING_GOLD,
@@ -812,10 +908,11 @@ export function createAndHostPrivateRoom(
   }
 
   const color = getNextAvailablePlayerColor(room);
+  const effectiveUsername = resolveJoinUsername(hostPlayerId, username);
 
   setPlayer(room.state, {
     id: hostPlayerId,
-    username,
+    username: effectiveUsername,
     color,
     status: "QUEUED",
     gold: STARTING_GOLD,
