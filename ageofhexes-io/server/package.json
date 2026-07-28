@@ -1,6 +1,6 @@
 
 {
-  "name": "territory-io-server",
+  "name": "ageofhexes-io-server",
   "private": true,
   "type": "module",
   "scripts": {

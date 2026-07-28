@@ -1,4 +1,4 @@
-const LOCK_NAME = "territory-io-client";
+const LOCK_NAME = "ageofhexes-io-client";
 
 function showBlockedScreen() {
 	document.body.innerHTML = "";
