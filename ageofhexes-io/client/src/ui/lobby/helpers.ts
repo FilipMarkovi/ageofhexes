@@ -1,5 +1,5 @@
 import { PRIVATE_MAP_OPTIONS } from "./constants.js";
-import { USERNAME_STORAGE_KEY } from "../../../../shared";
+import { USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
 
 export function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

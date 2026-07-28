@@ -57,7 +57,7 @@ const MAP_POOL: WeightedMap[] =
 
 // override weights
 const EXTRA_WEIGHTS: Record<string, number> = {
-  //greatriver: 10000,
+  logomap: 0,
 };
 
 for (const m of MAP_POOL) {

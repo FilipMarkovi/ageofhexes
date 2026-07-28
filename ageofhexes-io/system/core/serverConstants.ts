@@ -26,6 +26,14 @@ export const PLAYER_COLORS = [
   "#ff92f0", // 14. Bright Lemon Yellow
   "#1ea571", // 15. Sky Blue
   "#675dff", // 16. Pastel Apricot / Peach
+  "#606063",
+  "#d7d7d8",
+  "#4d4d4e",
+  "#524f7b",
+  "#3f513c",
+  "#56613e",
+  "#6e6545",
+  "#623e35",
 ];
 
 export const MIN_HQ_DISTANCE = 3;

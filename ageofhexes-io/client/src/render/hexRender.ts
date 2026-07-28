@@ -5,7 +5,7 @@ import { getStripePattern } from "./patterns.js";
 import { FILL_ALPHA } from "../../../shared/constants.js";
 import { darken } from "./playerColors.js";
 import { DEFENSE_HEAT_DECAY_MS, BUILDING_CONSTRUCTION_TIME, BUILDING_DEMOLISH_TIME } from "../../../shared/constants.js";
-import { tileTextures } from "./assetManager.js";
+import { tileTextures, buildingImages } from "./assetManager.js";
 import { getServerNow } from "../utils/time.js";
 
 /**
@@ -170,6 +170,7 @@ export function drawHexEffectsBatch(
 /**
  * BATCH PASS 3: Static building geometries.
  * Sets the drawing styles once to remove redundant pipeline state switches.
+ * draws building icons if loaded, otherwise draws vector shapes.
  */
 export function drawBuildingsBatch(
   ctx: CanvasRenderingContext2D,
@@ -209,6 +210,13 @@ export function drawBuildingsBatch(
       type = tile.building;
     }
     if (!type) continue;
+
+    const img = buildingImages[type];
+    if (img && img.complete && img.naturalWidth !== 0) {
+      const imgSize = s * 2.2; 
+      ctx.drawImage(img, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+      continue;
+    }
 
     ctx.save();
     ctx.translate(x, y);

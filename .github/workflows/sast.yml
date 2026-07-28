@@ -18,7 +18,7 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: p/typescript p/default
-          src: ./territory-io
+          src: ./ageofhexes-io
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }} 
 
@@ -28,5 +28,5 @@ jobs:
           node-version: '20'
 
       - name: npm library check (SCA)
-        working-directory: ./territory-io
+        working-directory: ./ageofhexes-io
         run: npm audit --audit-level=high
