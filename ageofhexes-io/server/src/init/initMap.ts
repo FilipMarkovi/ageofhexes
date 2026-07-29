@@ -8,6 +8,7 @@ export function initMap(
 ) {
 
   state.tiles.clear();
+  state.waterNetwork = null;
 
   for (const hex of map.hexes) {
     state.tiles.set(`${hex.q},${hex.r}`, {

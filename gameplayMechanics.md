@@ -32,6 +32,7 @@ All players generate **Army** and **Gold** passivly by a fixed amount + addition
 * **Adjacency Effect:** Forts and HQs increase the defense of their own tile **and all adjacent tiles**.
 
 ### Attacking & Capturing
+* **Attack only adjecent tiles** You can't attack anything thats not connected to your territory.
 * **Army Cost to Attack:** `attack_cost = tile_defense * 5`
 * **Capture Duration:** Capturing is not instantaneous. Capture time is calculated based on:
   * Target tile's defense value.
@@ -40,6 +41,18 @@ All players generate **Army** and **Gold** passivly by a fixed amount + addition
   * *Base Formula:* `attack_time = tile_defense * 1s`
 * **Neutral Tile Reward:** Successfully capturing a neutral tile grants instant Gold equal to the tile's **Base Defense**.
 
+### Water Tiles & Amphibious Assaults
+* **Impassable Barrier:** Water tiles cannot be captured or walked over directly.
+* **Harbor Gateway:** Constructing a **Harbor** unlocks the ability to launch amphibious attacks against any enemy or neutral land tile touching the same body of water.
+* **Naval Attack Mechanics:**
+  * Launching an attack spawns a **Transport Ship** that travels along the shortest water path from the Harbor to the target tile.
+  * **Amphibious Capture Time Formula:**  
+    $$\text{attack\_time} = \text{base\_tile\_capture\_time} + (\text{water\_path\_distance} \times 0.5\text{s})$$
+  * Capture progress begins immediately upon launching the attack.
+  * Destroying the source Harbor cancels all active incoming naval attacks originating from it.
+  * Harbor can connect player tiles to the mainland through water body on top of which the Harbor resides
+* **Naval attack limitations:**
+  * Naval attacks can't target enemys **Harbors** or **HQ** directly.
 ---
 
 ## 4. Structures & Construction
@@ -52,6 +65,7 @@ Players can construct buildings to expand their capabilities. Each building has 
 | **House** | Increases maximum Army capacity. | **Preserved** if capturer is under building limit; otherwise destroyed. |
 | **Barracks** | Provides flat Army generation bonus *(subject to Bell Curve)*. | **Preserved** if capturer is under building limit; otherwise destroyed. |
 | **Laboratory** | Unlocks the ability to purchase Buffs and Debuffs. | **Destroyed** upon capture. |
+| **Siege Outpost** | Unlocks special attacks. | **Destroyed** upon capture. |
 
 ---
 
@@ -65,6 +79,12 @@ Players can construct buildings to expand their capabilities. Each building has 
 
 ### Debuffs
 * *None currently implemented.*
+
+---
+
+## 6. Siege Outpost Attacks
+
+### WORK IN PROGRESS...
 
 ---
 

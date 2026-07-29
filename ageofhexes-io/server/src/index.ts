@@ -1,4 +1,5 @@
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocketServer, type WebSocket } from "ws";
+import { MAX_INTENTS_PER_SECOND } from "../../system/core/serverConstants.js";
 import crypto from "node:crypto";
 import {
   applyIntent,
@@ -8,6 +9,7 @@ import {
   MAPS,
   handlePlayerDeath,
   setPlayer, startHQPlacementCountdown,
+  buildWaterNetwork,
   type WireStateDelta,
   type WireState,
   checkGameOver
@@ -225,7 +227,7 @@ function handleJoinQueue(playerId: PlayerId, username: string) {
     eliminated: false,
     hqPos: { q: 0, r: 0 },
     lastSeen: Date.now(),
-    buildings: { fort: 0, barracks: 0, house: 0, laboratory: 0, siege_outpost: 0 },
+    buildings: { fort: 0, barracks: 0, house: 0, laboratory: 0, siege_outpost: 0, harbor: 0 },
     effects: []
   });
 
@@ -397,6 +399,8 @@ export function startMatchIfReady(room: GameRoom) {
 
   // Init map
   initMap(room.state, map);
+  // Cache water connectivity graph once per match for fast naval checks.
+  room.state.waterNetwork = buildWaterNetwork(room.state);
 
   startHQPlacementCountdown(room.state, room.id)
   room.lastTickMs = Date.now();
@@ -486,7 +490,7 @@ wss.on("connection", (ws, req) => {
       // Filter out timestamps older than 1 second
     history = history.filter(time => now - time < 1000);
     
-    if (history.length >= 10) {
+    if (history.length >= MAX_INTENTS_PER_SECOND) {
       // ws.send(JSON.stringify({ type: "ERROR", msg: "Too many actions!" }));
       return; 
     }
@@ -801,7 +805,7 @@ export function handleJoinPrivateRoom(playerId: PlayerId, username: string, code
     eliminated: false,
     hqPos: { q: 0, r: 0 },
     lastSeen: Date.now(),
-    buildings: { fort: 0, barracks: 0, house: 0, laboratory: 0, siege_outpost: 0 },
+    buildings: { fort: 0, barracks: 0, house: 0, laboratory: 0, siege_outpost: 0, harbor: 0 },
     effects: []
   });
 
@@ -860,6 +864,7 @@ function startPrivateMatch(room: GameRoom) {
   }
 
   initMap(room.state, map);
+  room.state.waterNetwork = buildWaterNetwork(room.state);
   startHQPlacementCountdown(room.state, room.id);
   room.lastTickMs = Date.now();
 
@@ -937,7 +942,7 @@ export function createAndHostPrivateRoom(
     eliminated: false,
     hqPos: { q: 0, r: 0 },
     lastSeen: Date.now(),
-    buildings: { fort: 0, barracks: 0, house: 0, laboratory: 0, siege_outpost: 0 },
+    buildings: { fort: 0, barracks: 0, house: 0, laboratory: 0, siege_outpost: 0, harbor: 0 },
     effects: []
   });
 

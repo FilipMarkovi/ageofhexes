@@ -2,10 +2,10 @@ import type { TileState, PlayerId, BuildingType } from "../../../shared/index.js
 import { canCaptureClient } from "../utils/canCapture.js";
 import { camera } from "./camera.js";
 import { getStripePattern } from "./patterns.js";
-import { FILL_ALPHA } from "../../../shared/constants.js";
+import { FILL_ALPHA, BUILDING_SIZE_MULTIPLIERS, HEX_SIZE, HARBOR_ATTACK_TIME_INCREASE } from "../../../shared/constants.js";
 import { darken } from "./playerColors.js";
 import { DEFENSE_HEAT_DECAY_MS, BUILDING_CONSTRUCTION_TIME, BUILDING_DEMOLISH_TIME } from "../../../shared/constants.js";
-import { tileTextures, buildingImages } from "./assetManager.js";
+import { tileTextures, buildingImages, shipImage } from "./assetManager.js";
 import { getServerNow } from "../utils/time.js";
 
 /**
@@ -167,6 +167,185 @@ export function drawHexEffectsBatch(
   }
 }
 
+// Module-level cache to track local smooth interpolation per capture target
+interface ShipClientState {
+  startTime: number;
+  lastCompleteAt: number;
+  totalNavalMoveMs: number;
+}
+
+const shipClientStates = new Map<string, ShipClientState>();
+
+/**
+ * BATCH PASS 2.5: Draw cached naval attack lines sent by the server.
+ * Uses local client-side tracking for silky smooth 60fps movement.
+ */
+export function drawWaterAttackPaths(ctx: CanvasRenderingContext2D, state: any) {
+  const now = getServerNow();
+  const halfW = ctx.canvas.width / 2;
+  const halfH = ctx.canvas.height / 2;
+  const shipSprite = shipImage.sprite;
+
+  const activeTargetsThisFrame = new Set<string>();
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  for (const [targetKey, tile] of state.tiles.entries()) {
+    const capture = tile.capture;
+    const naval = capture?.naval;
+    if (!capture || !naval || naval.path.length < 2) continue;
+
+    activeTargetsThisFrame.add(targetKey);
+
+    const attacker = state.players.get(capture.by);
+    const stroke = attacker?.color ?? "#ffffff";
+
+    // 1. Parse World Coordinates for the path
+    const routeWorld: Array<{ x: number; y: number }> = [];
+    for (const pathKey of naval.path) {
+      const [qRaw, rRaw] = pathKey.split(",");
+      const q = Number(qRaw);
+      const r = Number(rRaw);
+      if (Number.isNaN(q) || Number.isNaN(r)) continue;
+
+      const worldX = HEX_SIZE * (Math.sqrt(3) * q + (Math.sqrt(3) / 2) * r);
+      const worldY = HEX_SIZE * (1.5 * r);
+      routeWorld.push({ x: worldX, y: worldY });
+    }
+
+    if (routeWorld.length < 2) continue;
+
+    // 2. Render Path Line (Dotted)
+    ctx.beginPath();
+    for (let i = 0; i < routeWorld.length; i++) {
+      const pt = routeWorld[i];
+      const x = (pt.x - camera.x) * camera.zoom + halfW;
+      const y = (pt.y - camera.y) * camera.zoom + halfH;
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = Math.max(2, 3 * camera.zoom);
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([8 * camera.zoom, 6 * camera.zoom]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (!shipSprite || !shipSprite.complete || shipSprite.naturalWidth === 0) continue;
+
+    // 3. Client Local Tracking for Smooth Movement
+    const totalPathSegments = routeWorld.length - 1;
+    const totalNavalMoveMs = totalPathSegments * HARBOR_ATTACK_TIME_INCREASE;
+    const serverCompleteAt = capture.completeAt ?? 0;
+
+    let clientState = shipClientStates.get(targetKey);
+
+    if (
+      !clientState ||
+      Math.abs(clientState.lastCompleteAt - serverCompleteAt) > 200
+    ) {
+      const remaining = Math.max(0, Math.min(1, capture.remaining ?? 1));
+      const estimatedTotalDuration =
+        serverCompleteAt > now && remaining > 0
+          ? (serverCompleteAt - now) / remaining
+          : totalNavalMoveMs;
+
+      const calculatedStartTime = now - estimatedTotalDuration * (1 - remaining);
+
+      clientState = {
+        startTime: calculatedStartTime,
+        lastCompleteAt: serverCompleteAt,
+        totalNavalMoveMs,
+      };
+      shipClientStates.set(targetKey, clientState);
+    }
+
+    const elapsedMs = Math.max(0, now - clientState.startTime);
+
+    // 4. Determine Position & Orientation
+    let shipWorldX = 0;
+    let shipWorldY = 0;
+    let headingAngle = 0;
+
+    const lastWater = routeWorld[routeWorld.length - 2];
+    const targetLand = routeWorld[routeWorld.length - 1];
+
+    // Calculate beachhead stop point (edge of land tile instead of center)
+    const beachVx = targetLand.x - lastWater.x;
+    const beachVy = targetLand.y - lastWater.y;
+    const beachLen = Math.hypot(beachVx, beachVy) || 1;
+    
+    // Exact position at the shoreline
+    const beachStopX = targetLand.x - (beachVx / beachLen) * (HEX_SIZE * 0.45);
+    const beachStopY = targetLand.y - (beachVy / beachLen) * (HEX_SIZE * 0.45);
+
+    if (elapsedMs < totalNavalMoveMs && totalNavalMoveMs > 0) {
+      // SAILING PHASE
+      const progress = elapsedMs / HARBOR_ATTACK_TIME_INCREASE;
+      const segmentIndex = Math.min(totalPathSegments - 1, Math.floor(progress));
+      const t = Math.max(0, Math.min(1, progress - segmentIndex));
+
+      const from = routeWorld[segmentIndex];
+      const isLastSegment = segmentIndex === totalPathSegments - 1;
+      
+      // If on final segment, move smoothly towards beachStop instead of center of target tile
+      const to = isLastSegment 
+        ? { x: beachStopX, y: beachStopY } 
+        : routeWorld[segmentIndex + 1];
+
+      shipWorldX = from.x + (to.x - from.x) * t;
+      shipWorldY = from.y + (to.y - from.y) * t;
+      headingAngle = Math.atan2(to.y - from.y, to.x - from.x);
+    } else {
+      // PARKED PHASE: Lock onto beachhead stop position smoothly without snapping
+      shipWorldX = beachStopX;
+      shipWorldY = beachStopY;
+      headingAngle = Math.atan2(beachVy, beachVx);
+    }
+
+    // 5. Draw Upright Ship Sprite (Max 90deg left/right rotation)
+    const shipX = (shipWorldX - camera.x) * camera.zoom + halfW;
+    const shipY = (shipWorldY - camera.y) * camera.zoom + halfH;
+    const shipW = HEX_SIZE * camera.zoom * 1.2;
+    const shipH = HEX_SIZE * camera.zoom * 1.2;
+
+    ctx.save();
+    ctx.translate(shipX, shipY);
+
+    // Convert heading angle from standard math (0 = East, Math.PI/2 = South)
+    // to screen direction, ensuring ship never upside down:
+    const headingDeg = headingAngle * (180 / Math.PI);
+
+    // If traveling generally West/Left (-90 to -180, or 90 to 180)
+    if (Math.abs(headingDeg) > 90) {
+      ctx.scale(-1, 1); // Flip horizontally so sprite faces left
+      // Calculate remaining tilt constrained between -90 and 90
+      const tilt = headingDeg > 0 ? 180 - headingDeg : -180 - headingDeg;
+      ctx.rotate((tilt * Math.PI) / 180);
+    } else {
+      // Facing East/Right: direct tilt rotation constrained to [-90, 90]
+      ctx.rotate((headingDeg * Math.PI) / 180);
+    }
+
+    ctx.globalAlpha = 0.98;
+    ctx.drawImage(shipSprite, -shipW / 2, -shipH / 2, shipW, shipH);
+    ctx.restore();
+  }
+
+  // Cleanup finished or canceled attacks
+  for (const key of shipClientStates.keys()) {
+    if (!activeTargetsThisFrame.has(key)) {
+      shipClientStates.delete(key);
+    }
+  }
+
+  ctx.restore();
+}
+
 /**
  * BATCH PASS 3: Static building geometries.
  * Sets the drawing styles once to remove redundant pipeline state switches.
@@ -187,7 +366,7 @@ export function drawBuildingsBatch(
 
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.6, s * 1.2, s * 0.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.9, s * 1.2, s * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -213,7 +392,7 @@ export function drawBuildingsBatch(
 
     const img = buildingImages[type];
     if (img && img.complete && img.naturalWidth !== 0) {
-      const imgSize = s * 2.2; 
+      const imgSize = s * 2.4 * (BUILDING_SIZE_MULTIPLIERS.get(type) ?? 1);
       ctx.drawImage(img, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
       continue;
     }
@@ -267,6 +446,20 @@ export function drawBuildingsBatch(
         ctx.lineTo(-s * 0.25, -s * 0.7);
         ctx.lineTo(-s * 0.25, -s * 0.1);
         ctx.closePath();
+        break;
+
+      case "HARBOR":
+        ctx.moveTo(-s * 0.9, s * 0.55);
+        ctx.lineTo(s * 0.9, s * 0.55);
+        ctx.lineTo(s * 0.65, s * 0.9);
+        ctx.lineTo(-s * 0.65, s * 0.9);
+        ctx.closePath();
+        ctx.moveTo(-s * 0.2, s * 0.55);
+        ctx.lineTo(-s * 0.2, -s * 0.7);
+        ctx.lineTo(s * 0.35, -s * 0.45);
+        ctx.lineTo(-s * 0.2, -s * 0.2);
+        ctx.moveTo(-s * 0.4, -s * 0.05);
+        ctx.lineTo(s * 0.25, 0);
         break;
 
       case "SIEGE_OUTPOST":

@@ -2,7 +2,7 @@
 
 import type { GameRoom } from "../util/rooms.js";
 import { applyIntent } from "../../../system/index.js";
-import { deadlyAI } from "./simpleExpandBot.js";
+import { bestAI } from "./simpleExpandBot.js";
 
 const botCooldowns = new Map<string, number>();
 
@@ -22,14 +22,14 @@ export function runBots(room: GameRoom) {
 
     // 80% chance to attempt an action execution
     if (Math.random() < 0.8) {
-      const intent = deadlyAI(room.state, pid);
+      const intent = bestAI(room.state, pid);
       if (intent) {
         applyIntent(room.state, pid, intent);
       }
     }
 
     // Generates a random base delay between 200ms and 600ms + an extra tiny micro-variance 
-    const baseInterval = 200; // How long between overall actions
+    const baseInterval = 250; // How long between overall actions
     const humanVariance = Math.floor(Math.random() * 250); // Adds 0 to 250ms of organic offset
     
     botCooldowns.set(pid, now + baseInterval + humanVariance);

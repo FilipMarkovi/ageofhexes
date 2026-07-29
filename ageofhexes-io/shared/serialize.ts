@@ -4,8 +4,8 @@ import type { CoreGameState, TileState, PlayerState } from "./gameTypes.js";
 const TERRAIN_MAP: Record<string, number> = { GRASS: 0, MOUNTAIN: 1, BEDROCK: 2, DESERT: 3, WATER: 4 };
 const TERRAIN_REV = ["GRASS", "MOUNTAIN", "BEDROCK", "DESERT", "WATER"] as const;
 
-const BLD_MAP: Record<string, number> = { HQ: 0, FORT: 1, BARRACKS: 2, HOUSE: 3, LABORATORY: 4, SIEGE_OUTPOST: 5 };
-const BLD_REV = ["HQ", "FORT", "BARRACKS", "HOUSE", "LABORATORY", "SIEGE_OUTPOST"] as const;
+const BLD_MAP: Record<string, number> = { HQ: 0, FORT: 1, BARRACKS: 2, HOUSE: 3, LABORATORY: 4, SIEGE_OUTPOST: 5, HARBOR: 6 };
+const BLD_REV = ["HQ", "FORT", "BARRACKS", "HOUSE", "LABORATORY", "SIEGE_OUTPOST", "HARBOR"] as const;
 
 const PHASE_MAP: Record<string, number> = { HQ_PLACEMENT: 0, GAMEPLAY: 1 };
 const PHASE_REV = ["HQ_PLACEMENT", "GAMEPLAY"] as const;
@@ -149,11 +149,12 @@ export function serializeState(state: CoreGameState): WireState {
       p.buildings.barracks,                // 12
       p.buildings.house,                   // 13
       p.buildings.laboratory,              // 14
-      p.buildings.siege_outpost            // 15
+      p.buildings.siege_outpost,           // 15
+      p.buildings.harbor                   // 16
     ];
 
     if (p.effects.length > 0) {
-      pArr[16] = p.effects.map(e => [
+      pArr[17] = p.effects.map(e => [
         PLY_EFF_MAP[e.type],
         e.durationLeft,                    // EXACT
         e.sourcePlayerId ? playerSlots.get(e.sourcePlayerId) ?? null : null
@@ -179,7 +180,10 @@ export function serializeState(state: CoreGameState): WireState {
         // remaining fraction (1..0)
         (t.capture.remaining !== undefined ? t.capture.remaining : 1),
         Math.round(t.capture.cost),                      // ROUNDED
-        t.capture.completeAt ?? null                     // optional timestamp (ms)
+        t.capture.completeAt ?? null,                    // optional timestamp (ms)
+        t.capture.naval?.sourceHarborKey ?? null,
+        t.capture.naval?.waterTilesCrossed ?? null,
+        t.capture.naval?.path ?? null
       ] : null,
       
       t.buildingAction ? [                               // 8: Action Tuple
@@ -240,7 +244,7 @@ export function deserializeState(raw: WireState): CoreGameState {
     const pId = pArr[0];
     slotToPlayerId.set(i, pId);
 
-    const effRaw = pArr[16];
+    const effRaw = pArr[17];
     
     players.set(pId, {
       id: pId,
@@ -254,11 +258,12 @@ export function deserializeState(raw: WireState): CoreGameState {
       lastSeen: pArr[9],
       isBot: pArr[10] === 1,
       buildings: {
-        fort: pArr[11],
-        barracks: pArr[12],
-        house: pArr[13],
-        laboratory: pArr[14],
-        siege_outpost: pArr[15]
+        fort: pArr[11] ?? 0,
+        barracks: pArr[12] ?? 0,
+        house: pArr[13] ?? 0,
+        laboratory: pArr[14] ?? 0,
+        siege_outpost: pArr[15] ?? 0,
+        harbor: pArr[16] ?? 0
       },
       effects: effRaw ? effRaw.map((e: any) => ({
         type: PLY_EFF_REV[e[0]] as any,
@@ -296,7 +301,12 @@ export function deserializeState(raw: WireState): CoreGameState {
         by: getPId(capRaw[0])!,
         remaining: capRaw[1],
         cost: capRaw[2],
-        completeAt: capRaw[3] ?? null
+        completeAt: capRaw[3] ?? null,
+        naval: capRaw[4] ? {
+          sourceHarborKey: capRaw[4],
+          waterTilesCrossed: capRaw[5] ?? 0,
+          path: capRaw[6] ?? []
+        } : undefined
       } as any : null,
       
       buildingAction: actRaw ? {
@@ -342,6 +352,7 @@ export function deserializeState(raw: WireState): CoreGameState {
     players,
     tiles,
     HQLocations,
-    connectedCache: null
+    connectedCache: null,
+    waterNetwork: null
   };
 }

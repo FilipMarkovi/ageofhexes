@@ -1,7 +1,7 @@
 
 import type { PlayerId, TileState, BuildingType, TileEffectType, TileEffect, PlayerState,
   PlayerEffectType, PlayerEffect } from "../../shared/index.js";
-import { calculateCaptureRate } from "../../shared/util.js";
+import { calculateCaptureRate, key, neighbors, findPathOverTerrain, getClosestNavalHarborKey, isConnectedViaWaterFast, computeConnectedTilesViaHarbors } from "../../shared/util.js";
 import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   HQ_DEFENSE_ADJACENT, HQ_DEFENSE_SELF, GOLD_PER_TILE, BASE_ARMY_MAX, BASE_GOLD_MAX, ARMY_CAP_PER_TILE, CAPTURE_RATE,
   GOLD_PASSIVE, ARMY_PASSIVE, BARRACKS_ARMY_BONUS, DEFEND_COST_RATIO, BUILDING_COST,
@@ -9,10 +9,10 @@ import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   DEFENSE_COST_INCREMENT, TILE_ATTACK_COOLDOWN, BUILDING_LIMIT, HOUSE_ARMY_CAP_BONUS, ARMY_PER_TILE,
   TILES_UNTIL_MAX_ATTACKTIME_INCREASE, MAX_ATTACKTIME_INCREASE, NEUTRAL_TILE_CAPTURE_GOLD,
   PLAYER_KILL_GOLD_REWARD, EFFECT_DURATIONS, EFFECT_STRENGTHS, EFFECT_COSTS, BUILDING_CONSTRUCTION_TIME,
-  BUILDING_DEMOLISH_TIME} from "../../shared/constants.js";
+  BUILDING_DEMOLISH_TIME, HARBOR_ATTACK_TIME_INCREASE} from "../../shared/constants.js";
 import type { CoreGameState } from "./state.js";
 import { handlePlaceHQ } from "./state.js";
-import { getTile, isAdjacentOwned, key, neighbors, isAdjacentOwnedAndConnected } from "./state.js";
+import { getTile, isAdjacentOwned, isAdjacentOwnedAndConnected } from "./state.js";
 import { sendPlayerLog, updatePlayerStat } from "../../server/src/index.js";
 
 export type Intent =
@@ -95,8 +95,11 @@ export function canStartCapture(state: CoreGameState, playerId: PlayerId, q: num
   const player = state.players.get(playerId);
   if (!tile || !player) return false;
   if (tile.ownerId === playerId) return false;
-  if (!isAdjacentOwnedAndConnected(state, q, r, playerId)) return false;
-  if (tile.terrain === "BEDROCK") return false;
+  const targetKey = key(q, r);
+  const hasLandAttack = isAdjacentOwnedAndConnected(state, q, r, playerId);
+  const hasNavalAttack = hasLandAttack ? false : canStartNavalCapture(state, playerId, targetKey);
+  if (!hasLandAttack && !hasNavalAttack) return false;
+  if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") return false;
   const cost = captureCost(tile.defense);
   if(Date.now() - tile.lastDefendedAt < TILE_ATTACK_COOLDOWN) return false
   return player.army >= cost;
@@ -107,10 +110,84 @@ export function canContinueCapture(state: CoreGameState, playerId: PlayerId, q: 
   const player = state.players.get(playerId);
   if (!tile || !player) return false;
   if (tile.ownerId === playerId) return false;
+  if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") return false;
+
+  if (tile.capture?.naval) {
+    return canContinueNavalCapture(state, playerId, q, r, tile.capture.naval.sourceHarborKey);
+  }
+
   // still must keep adjacency + supply while capturing
   if (!isAdjacentOwnedAndConnected(state, q, r, playerId)) return false;
-  if (tile.terrain === "BEDROCK") return false;
   return true;
+}
+
+function canStartNavalCapture(state: CoreGameState, playerId: PlayerId, targetKey: string): boolean {
+  const network = state.waterNetwork;
+  if (!network) return false;
+
+  const targetTile = state.tiles.get(targetKey);
+  if (!targetTile || targetTile.building === "HQ" || targetTile.building === "HARBOR") return false;
+
+  const harborKey = getClosestNavalHarborKey(state, playerId, targetKey, network);
+  if (!harborKey) return false;
+
+  return isConnectedViaWaterFast(network.landToWaterBodies, harborKey, targetKey);
+}
+
+function canContinueNavalCapture(
+  state: CoreGameState,
+  playerId: PlayerId,
+  q: number,
+  r: number,
+  sourceHarborKey: string
+): boolean {
+  const network = state.waterNetwork;
+  if (!network) return false;
+
+  const harborTile = state.tiles.get(sourceHarborKey);
+  if (!harborTile) return false;
+  if (harborTile.ownerId !== playerId || harborTile.building !== "HARBOR") return false;
+  if (!isTileConnectedToHQ(state, playerId, harborTile.q, harborTile.r)) return false;
+
+  const targetKey = key(q, r);
+  const targetTile = state.tiles.get(targetKey);
+  if (!targetTile || targetTile.building === "HARBOR") return false;
+  
+  return isConnectedViaWaterFast(network.landToWaterBodies, sourceHarborKey, targetKey);
+}
+
+function getWaterTilesCrossed(state: CoreGameState, path: string[]): number {
+  let count = 0;
+  for (let i = 0; i < path.length; i++) {
+    const tile = state.tiles.get(path[i]);
+    if (tile?.terrain === "WATER") count++;
+  }
+  return count;
+}
+
+function computeCaptureRateWithMode(
+  state: CoreGameState,
+  tile: TileState,
+  attackerId: PlayerId,
+  waterTilesCrossed: number
+): number {
+  const defenderTerritorySize = tile.ownerId
+    ? (state.connectedCache?.get(tile.ownerId)?.size ?? 0)
+    : 0;
+
+  const attackingPlayer = state.players.get(attackerId);
+  const speedBoost = hasPlayerEffect(attackingPlayer, "ATTACK_SPEED")
+    ? EFFECT_STRENGTHS["ATTACK_SPEED"]
+    : 1;
+
+  const baseRate = calculateCaptureRate(tile.defense, defenderTerritorySize, speedBoost);
+  if (waterTilesCrossed <= 0) return baseRate;
+
+  const baseDurationSeconds = baseRate > 0 ? (1 / baseRate) : Infinity;
+  const navalPenaltySeconds = (HARBOR_ATTACK_TIME_INCREASE * waterTilesCrossed) / 1000;
+  const totalDurationSeconds = baseDurationSeconds + navalPenaltySeconds;
+
+  return totalDurationSeconds > 0 ? (1 / totalDurationSeconds) : 0;
 }
 
 export function tryCapture(
@@ -124,8 +201,32 @@ export function tryCapture(
   if (!tile || !player) return false; //
 
   if (tile.ownerId === playerId) return false; // 
-  if (!isAdjacentOwnedAndConnected(state, q, r, playerId)) return false; // 
-  if (tile.terrain === "BEDROCK") return false;
+  if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") return false;
+
+  const targetKey = key(q, r);
+  const hasLandAttack = isAdjacentOwnedAndConnected(state, q, r, playerId);
+  let navalCapture: { sourceHarborKey: string; waterTilesCrossed: number; path: string[] } | null = null;
+
+  if (!hasLandAttack) {
+    const network = state.waterNetwork;
+    if (!network) return false;
+
+    const harborKey = getClosestNavalHarborKey(state, playerId, targetKey, network);
+    if (!harborKey) return false;
+
+    const harborTile = state.tiles.get(harborKey);
+    if (!harborTile) return false;
+    if (!isTileConnectedToHQ(state, playerId, harborTile.q, harborTile.r)) return false;
+
+    const path = findPathOverTerrain(state, harborKey, targetKey, "WATER");
+    if (!path || path.length < 2) return false;
+
+    navalCapture = {
+      sourceHarborKey: harborKey,
+      waterTilesCrossed: getWaterTilesCrossed(state, path),
+      path,
+    };
+  }
 
   // Already being captured by same player → ignore . what if another player
   if (tile.capture && tile.capture.by !== playerId) {
@@ -140,24 +241,16 @@ export function tryCapture(
   // Pay upfront
   modifyPlayerResources(state, player, 'army', -cost);
 
-  // Compute capture rate using corrected formula
-  const defenderTerritorySize = tile.ownerId 
-    ? (state.connectedCache?.get(tile.ownerId)?.size ?? 0) 
-    : 0;
-
-  const attackingPlayer = state.players.get(playerId);
-  const SPEED_BOOST = hasPlayerEffect(attackingPlayer, "ATTACK_SPEED") 
-    ? EFFECT_STRENGTHS["ATTACK_SPEED"] 
-    : 1;
-
-  const rate = calculateCaptureRate(tile.defense, defenderTerritorySize, SPEED_BOOST);
+  const waterTilesCrossed = navalCapture?.waterTilesCrossed ?? 0;
+  const rate = computeCaptureRateWithMode(state, tile, playerId, waterTilesCrossed);
   const durationMs = rate > 0 ? (1000 / rate) : Infinity;
 
   tile.capture = {
     by: playerId,
     remaining: 1, // fraction of work left (1 = 100%)
     cost,
-    completeAt: Date.now() + durationMs
+    completeAt: Date.now() + durationMs,
+    naval: navalCapture ?? undefined,
   };
 
   return true;
@@ -199,6 +292,13 @@ export function tryBuild(
   if (tile.building !== null || tile.buildingAction !== null) return false;
   if (player.gold < BUILDING_COST[buildingType]) return false;
   if (!isTileConnectedToHQ(state, playerId, q, r)) return false;
+  if (buildingType === "HARBOR") {
+    const hasAdjacentWater = neighbors(q, r).some((n) => {
+      const adjacentTile = getTile(state, n.q, n.r);
+      return adjacentTile?.terrain === "WATER";
+    });
+    if (!hasAdjacentWater) return false;
+  }
   if(buildingType == "SIEGE_OUTPOST") return false; // TEMPORARY DISABLE ATTACK BUILDINGS
   const bKey = buildingType.toLowerCase() as keyof typeof player.buildings;
 
@@ -284,15 +384,10 @@ export function tick(state: CoreGameState, dt: number) {
       }
 
       // capture progress (big territory = more time to capture)
-      // Use the defending player's connected tiles for territory size
-      const defenderTerritorySize = t.ownerId 
-        ? (state.connectedCache?.get(t.ownerId)?.size ?? 0) 
-        : 0;
-      const attackingPlayer = state.players.get(by!);
-      const SPEED_BOOST = hasPlayerEffect(attackingPlayer, "ATTACK_SPEED") ? EFFECT_STRENGTHS["ATTACK_SPEED"] : 1;
-
-      // Calculate progress rate using corrected formula
-      const rate = calculateCaptureRate(t.defense, defenderTerritorySize, SPEED_BOOST);
+      // Naval captures share the same intent/progress pipeline, but with extra duration.
+      const waterTilesCrossed = t.capture.naval?.waterTilesCrossed ?? 0;
+      const rate = computeCaptureRateWithMode(state, t, by, waterTilesCrossed);
+      const attackingPlayer = state.players.get(by);
 
       const dec = rate * dt;
       t.capture.remaining = Math.max(0, (t.capture.remaining ?? 1) - dec);
@@ -340,6 +435,9 @@ export function tick(state: CoreGameState, dt: number) {
             } else if(prevBuilding === "SIEGE_OUTPOST") {
               t.building = null;
               defendingPlayer.buildings.siege_outpost--;
+            } else if (prevBuilding === "HARBOR") {
+              defendingPlayer.buildings.harbor--;
+              t.building = null;
             } else {
               t.building = null;
             }
@@ -387,15 +485,24 @@ export function tick(state: CoreGameState, dt: number) {
 
       if (tileOwner) {
         if (action.actionType === "CONSTRUCTING") {
-          // Finalize structure assembly
-          t.building = action.building;
           const bKey = action.building.toLowerCase() as keyof typeof tileOwner.buildings;
-          tileOwner.buildings[bKey] = Math.min(BUILDING_LIMIT[action.building], tileOwner.buildings[bKey] + 1);
-          if (action.building === "FORT") {
-            recalcDefense(state);
+          const currentCount = tileOwner.buildings[bKey] ?? 0;
+          const limit = BUILDING_LIMIT[action.building];
+
+          // Re-check cap at completion time: ownership can change while construction is in progress.
+          if (currentCount >= limit) {
+            sendPlayerLog(tileOwner.id, `Construction of ${action.building} canceled (limit reached)`, "#f5260b");
+          } else {
+            // Finalize structure assembly only if still under cap.
+            t.building = action.building;
+            tileOwner.buildings[bKey] = currentCount + 1;
+
+            if (action.building === "FORT") {
+              recalcDefense(state);
+            }
+            sendPlayerLog(tileOwner.id, `Construction of ${action.building} completed`, "#1f6ce0");
           }
-          sendPlayerLog(tileOwner.id, `Construction of ${action.building} completed`, "#1f6ce0");
-        } 
+        }  
         else if (action.actionType === "DEMOLISHING") {
           // Calculate refund values & decrement building counters upon completion
           const cost = BUILDING_COST[action.building];
@@ -568,39 +675,13 @@ export function computeConnectedTilesFromHQ(
   state: CoreGameState,
   playerId: PlayerId
 ): Set<string> {
-  if(!playerId) return new Set()
-  const visited = new Set<string>();
-  const stack: Array<{ q: number; r: number }> = [];
-
-  // Find HQ
-  let hqTile: { q: number; r: number } | null = null;
   const player = state.players.get(playerId);
-  if (player) {
-    hqTile = player.hqPos;
-  }
-
-  if (!hqTile) return visited;
-
-  stack.push(hqTile);
-  visited.add(key(hqTile.q, hqTile.r));
-
-  while (stack.length > 0) {
-    const cur = stack.pop()!;
-
-    for (const n of neighbors(cur.q, cur.r)) {
-      const t = getTile(state, n.q, n.r);
-      if (!t) continue;
-      if (t.ownerId !== playerId) continue;
-
-      const k = key(t.q, t.r);
-      if (visited.has(k)) continue;
-
-      visited.add(k);
-      stack.push({ q: t.q, r: t.r });if(!playerId) return new Set()
-    }
-  }
-
-  return visited;
+  return computeConnectedTilesViaHarbors(
+    state,
+    playerId,
+    player?.hqPos ?? null,
+    state.waterNetwork ?? null
+  );
 }
 
 export function getConnectedTilesFromHQ(

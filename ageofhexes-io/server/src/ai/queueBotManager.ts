@@ -76,6 +76,7 @@ export function fillRoomWithBots(
         house: 0,
         laboratory: 0,
         siege_outpost: 0,
+        harbor: 0,
       },
       effects: []
     });

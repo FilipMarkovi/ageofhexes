@@ -1,5 +1,5 @@
 import { GAMER_NAMES } from "./serverConstants.js";
-import { key } from "./state.js";
+import { key } from "../../shared/util.js";
 
 export function getRandomNames(count: number): string[] {
   // 1. Create a shallow copy

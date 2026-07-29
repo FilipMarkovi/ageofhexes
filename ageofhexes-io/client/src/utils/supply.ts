@@ -1,5 +1,6 @@
-import type { CoreGameState, PlayerId } from "../../../shared/index.js";
+import type { CoreGameState, PlayerId, WaterNetwork } from "../../../shared/index.js";
 import { HEX_DIRECTIONS } from "../../../shared/constants.js";
+import { buildWaterNetwork, computeConnectedTilesViaHarbors } from "../../../shared/util.js";
 
 export function key(q: number, r: number) {
   return `${q},${r}`;
@@ -10,40 +11,16 @@ export function neighbors(q: number, r: number) {
 }
 export function getConnectedTilesFromHQ_Client(
   state: CoreGameState,
-  playerId: PlayerId
+  playerId: PlayerId,
+  precomputedWaterNetwork?: WaterNetwork | null
 ): Set<string> {
-  const visited = new Set<string>();
-  const stack: Array<{ q: number; r: number }> = [];
+  const player = state.players.get(playerId);
+  const waterNetwork = precomputedWaterNetwork ?? buildWaterNetwork(state);
 
-  // Find HQ
-  let hq: { q: number; r: number } | null = null;
-
-  for (const t of state.tiles.values()) {
-    if (t.ownerId === playerId && t.building === "HQ") {
-      hq = { q: t.q, r: t.r };
-      break;
-    }
-  }
-
-  if (!hq) return visited;
-
-  stack.push(hq);
-  visited.add(key(hq.q, hq.r));
-
-  while (stack.length > 0) {
-    const cur = stack.pop()!;
-    for (const n of neighbors(cur.q, cur.r)) {
-      const t = state.tiles.get(key(n.q, n.r));
-      if (!t) continue;
-      if (t.ownerId !== playerId) continue;
-
-      const k = key(t.q, t.r);
-      if (visited.has(k)) continue;
-
-      visited.add(k);
-      stack.push({ q: t.q, r: t.r });
-    }
-  }
-
-  return visited;
+  return computeConnectedTilesViaHarbors(
+    state,
+    playerId,
+    player?.hqPos ?? null,
+    waterNetwork
+  );
 }

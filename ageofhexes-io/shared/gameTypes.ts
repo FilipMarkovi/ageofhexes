@@ -28,7 +28,7 @@ export interface PlayerEffect {
 
 export type PlayerId = string
 
-export type BuildingType = "FORT" | "BARRACKS" | "HOUSE" | "LABORATORY" | "SIEGE_OUTPOST";
+export type BuildingType = "FORT" | "BARRACKS" | "HOUSE" | "LABORATORY" | "SIEGE_OUTPOST" | "HARBOR";
 
 export type PlayerStatus =
   | "LOBBY"     // connected, not queued
@@ -39,6 +39,20 @@ export type PlayerStatus =
 export interface Axial {
   q: number
   r: number
+}
+
+export interface NavalCaptureInfo {
+  sourceHarborKey: string;
+  waterTilesCrossed: number;
+  path: string[];
+}
+
+export interface CaptureState {
+  by: PlayerId;
+  remaining: number; // fraction of completed capture, 0-1
+  completeAt: number; // timestamp for Date.now()
+  cost: number;
+  naval?: NavalCaptureInfo;
 }
 
 export interface TileState {
@@ -55,12 +69,7 @@ export interface TileState {
   defenseHeat: number
   lastDefendedAt: number
 
-  capture: {
-    by: PlayerId;
-    remaining: number; // fraction of completed capture, 0-1
-    completeAt: number; // timestamp for Date.now()
-    cost: number;
-  } | null;
+  capture: CaptureState | null;
 
   buildingAction: {
     building: BuildingType;
@@ -69,6 +78,17 @@ export interface TileState {
   } | null;
 
   effects: TileEffect[];
+}
+
+export interface WaterBody {
+  id: number;
+  waterTiles: Set<string>; // All water hexes in this lake/ocean
+  coastalLandTiles: Set<string>; // All land hexes touching this body of water
+}
+
+export interface WaterNetwork {
+  waterBodies: WaterBody[];
+  landToWaterBodies: Map<string, Set<number>>;
 }
 
 export interface PlayerState {
@@ -89,6 +109,7 @@ export interface PlayerState {
     house: number,
     laboratory: number,
     siege_outpost: number,
+    harbor: number,
   }
 
   effects: PlayerEffect[]
@@ -101,6 +122,7 @@ export interface CoreGameState {
   started: boolean;
   gameOver: null | { winner: PlayerId; };
   connectedCache?: Map<PlayerId, Set<string>> | null;
+  waterNetwork?: WaterNetwork | null;
   mapId: null | string;
   mapName: null | string;
   HQLocations: Map<PlayerId, TileState>;

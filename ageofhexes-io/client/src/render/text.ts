@@ -25,11 +25,12 @@ export function drawHexTextBatch(
   ctx.textBaseline = "middle";
 
   const renderSize = size * camera.zoom;
-  const buildingOffset = renderSize * 0.5;
+  const buildingOffset = renderSize * 0.6;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const { x, y, tile } = item;
+    if (!tile || tile.terrain === "BEDROCK" || tile.terrain === "WATER") continue; // Skip for bedrock and water
     
     // Read directly from the existing tile data passed down the pipeline
     const text = tile.defense.toString();

@@ -1,7 +1,8 @@
 
-import type { PlayerId, PlayerState, TileState, GamePhase } from "../../shared/index.js";
+import type { PlayerId, PlayerState, TileState, GamePhase, WaterNetwork } from "../../shared/index.js";
 import { getConnectedTilesFromHQ, handlePlayerDeath, recalcDefense } from "./systems.js";
 import { MIN_HQ_DISTANCE } from "./serverConstants.js";
+import { key, DIRS, neighbors, neighborTiles, hexDistance, getHexDistance } from "../../shared/util.js";
 
 export interface CoreGameState {
   phase: GamePhase;
@@ -10,6 +11,7 @@ export interface CoreGameState {
   started: boolean;
   gameOver: null | { winner: PlayerId; };
   connectedCache?: Map<PlayerId, Set<string>> | null;
+  waterNetwork?: WaterNetwork | null;
   mapId: null | string;
   mapName: null | string;
   HQLocations: Map<PlayerId, TileState>;
@@ -24,15 +26,12 @@ export function createGameState(): CoreGameState {
     started: false,
     gameOver: null,
     connectedCache: null,
+    waterNetwork: null,
     mapId: null,
     mapName: null,
     HQLocations: new Map(),
     placementTimeLeft: 15,
   };
-}
-
-export function key(q: number, r: number) {
-  return `${q},${r}`;
 }
 
 export function getTile(state: CoreGameState, q: number, r: number) {
@@ -43,34 +42,11 @@ export function setPlayer(state: CoreGameState, player: PlayerState) {
   state.players.set(player.id, player);
 }
 
-// Hex axial neighbors (pointy-top axial)
-export const DIRS: Array<{ q: number; r: number }> = [
-  { q: 1, r: 0 },
-  { q: 1, r: -1 },
-  { q: 0, r: -1 },
-  { q: -1, r: 0 },
-  { q: -1, r: 1 },
-  { q: 0, r: 1 }
-];
-
-export function neighbors(q: number, r: number) {
-  return DIRS.map(d => ({ q: q + d.q, r: r + d.r }));
-}
-
 export function isAdjacentOwned(state: CoreGameState, q: number, r: number, ownerId: PlayerId): boolean {
   return neighbors(q, r).some(n => {
     const t = getTile(state, n.q, n.r);
     return !!t && t.ownerId === ownerId;
   });
-}
-
-export function neighborTiles(state: CoreGameState, q: number, r: number): any {
-  let found = Array()
-  neighbors(q, r).forEach(n => {
-    const t = getTile(state, n.q, n.r);
-    found.push(t)
-  });
-  return found;
 }
 
 export function nonOwnedNeighbors(state: CoreGameState, q: number, r: number, ownerId: PlayerId): any {
@@ -97,17 +73,6 @@ export function isAdjacentOwnedAndConnected(
     if (t.ownerId !== playerId) return false;
     return connected.has(key(t.q, t.r));
   });
-}
-
-export function hexDistance(
-  a: { q: number; r: number },
-  b: { q: number; r: number }
-): number {
-  const dq = a.q - b.q;
-  const dr = a.r - b.r;
-  const ds = (a.q + a.r) - (b.q + b.r);
-
-  return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
 }
 
 export function handlePlaceHQ(
@@ -169,10 +134,6 @@ export function handlePlaceHQ(
   return { success: true };
 }
 
-function getHexDistance(q1: number, r1: number, q2: number, r2: number): number {
-  return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
-}
-
 export function startHQPlacementCountdown(state: CoreGameState, roomId: string) {
   state.phase = "HQ_PLACEMENT";
   state.started = true
@@ -214,3 +175,4 @@ function endHQPlacementAndEliminate(state: CoreGameState, roomId: string) {
 
   recalcDefense(state)
 }
+

@@ -10,8 +10,8 @@ export const TERRAIN_BASE_DEFENSE: Record<TerrainType, number> = {
 };
 
 export const PLAYER_COLORS = [
-  "#ff4949", // 1. Crimson Red
-  "#3b4ef6", // 2. Bright Royal Blue
+  "#3b4ef6", // 1. Bright Royal Blue
+  "#ff4949", // 2. Crimson Red // 
   "#25dd68", // 3. Neon Emerald Green
   "#eab308", // 4. Vibrant Gold / Yellow
   "#a855f7", // 5. Deep Purple
@@ -37,6 +37,8 @@ export const PLAYER_COLORS = [
 ];
 
 export const MIN_HQ_DISTANCE = 3;
+
+export const MAX_INTENTS_PER_SECOND = 10;
 
 // AI
 export const PIVOT_DIST = 4;

@@ -10,7 +10,8 @@ export function initKeyboard() {
     if (e.key === "2") toggleBuildMode("BARRACKS");
     if (e.key === "3") toggleBuildMode("HOUSE");
     if (e.key === "4") toggleBuildMode("LABORATORY");
-    //if (e.key === "5") toggleBuildMode("SIEGE_OUTPOST")
+    if (e.key === "5") toggleBuildMode("HARBOR");
+    //if (e.key === "6") toggleBuildMode("SIEGE_OUTPOST")
 
     if (e.key === "e") toggleAbilityMode("ATTACK_SPEED")
     if (e.key === "r") toggleAbilityMode("ARMY_GAIN_BUFF")

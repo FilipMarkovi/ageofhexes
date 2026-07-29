@@ -14,10 +14,10 @@ export const greatriver = asciiToGameMap(
     D D D G G G G G G G G G G G G G G G G G G G G G G G G G G G G G D D D . . .
      D D G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G D D . .
     D D G G G G G G G G G G G G G G G G W W W W W W G G G G G G G G G G D D . .
-     D W W W W W G G G G G G G G G G W W W W W W W W W G G G G G G G G G D D .
-    D D W W W W W W W G G G G G G W W W W G G G G W W W G G G G G G G G D D . .
-     D D G G G W W W W W W W W W W W W W G G G G G G G W W W W W W W W W D D .
-    D D G G G G G G G W W W W W W W G G G G G G G G G G G W W W W W W W D D . .
+     W W W W W W G G G G G G G G G G W W W W W W W W W G G G G G G G G G W W .
+    W W W W W W W W W W G G G G G W W W W G G G G W W W G G G G G G G W W W . .
+     D D G G G W W W W W W W W W W W W W G G G G G G G W W W W W W W W W W D .
+    D D G G G G G G W W W W W W W W G G G G G G G G G G G W W W W W W W D D . .
      D D G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G D D .
     D D D G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G D D . .
      D D D G G G G G G G G G G G G G G G G G G G G G G G G G G G G G G D D . .

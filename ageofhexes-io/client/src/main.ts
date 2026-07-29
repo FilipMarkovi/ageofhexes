@@ -3,6 +3,7 @@ import {
   drawHexBatch, 
   getTileColor, 
   drawHexEffectsBatch, 
+  drawWaterAttackPaths,
   drawBuildingsBatch, 
   drawCaptureHexBatch, 
   drawBuildingProgressBarsBatch 
@@ -13,6 +14,7 @@ import { drawHUD, drawTargetingHUD } from "./ui/hud.js";
 import { connect } from "./net/socket.js";
 import { clientNetState,clientUIState } from "./state/clientState.js";
 import type { CoreGameState, PlayerId } from "../../shared/index.js";
+import { buildWaterNetwork } from "../../shared/util.js";
 import { initPan } from "./input/pan.js";
 import { initZoom } from "./input/zoom.js";
 import { camera } from "./render/camera.js";
@@ -114,10 +116,12 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
   onState: (state) => {
     clientNetState.state = state;
 
+    const waterNetwork = buildWaterNetwork(state);
+
     connectedByPlayer.clear();
     for (const p of state.players.values()) {
       if (!p.eliminated) {
-        connectedByPlayer.set(p.id, getConnectedTilesFromHQ_Client(state, p.id));
+        connectedByPlayer.set(p.id, getConnectedTilesFromHQ_Client(state, p.id, waterNetwork));
       }
     }
 
@@ -439,6 +443,7 @@ function loop() {
     // High-performance batched pipeline execution passes
     drawHexBatch(ctx, visibleTiles, HEX_SIZE);
     drawHexEffectsBatch(ctx, visibleTiles, HEX_SIZE);
+    drawWaterAttackPaths(ctx, state);
     drawBuildingsBatch(ctx, visibleTiles, HEX_SIZE);
     drawBuildingProgressBarsBatch(ctx, visibleTiles, HEX_SIZE);
     drawCaptureHexBatch(ctx, visibleTiles, HEX_SIZE, deltaTime);
