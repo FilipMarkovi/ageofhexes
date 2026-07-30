@@ -32,21 +32,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 6767; // port
-const HOST = '0.0.0.0';
+const HOST = '127.0.0.1';
 const app = express();
 
 
 const server =app.listen(PORT, HOST, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
-
-const clientDistPath = path.resolve(process.cwd(), "client/dist");
-if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
-  app.get(["/", "/leaderboard", "/privatelobby", "/match"], (_req, res) => {
-    res.sendFile(path.join(clientDistPath, "index.html"));
-  });
-}
 
 
 type ClientMsg =
