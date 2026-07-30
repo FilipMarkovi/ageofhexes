@@ -31,7 +31,7 @@ import { getNextAvailablePlayerColor } from "./util/playerColors.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = 6767;
+const PORT = 6767; // port
 const HOST = '0.0.0.0';
 const app = express();
 
