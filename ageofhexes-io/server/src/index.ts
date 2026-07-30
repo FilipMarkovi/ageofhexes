@@ -459,7 +459,7 @@ setInterval(() => {
   tickCount++;
 
   // log every 60 seconds
-  if (now - lastMetricsLog >= 30000) {
+  if (now - lastMetricsLog >= 60000) {
     const avgTickTime = tickCount > 0 ? (totalTickTimeMs / tickCount).toFixed(2) : "0.00";
     
     console.log(`[METRICS] --- ${new Date().toISOString()} | Active Rooms:  ${currentRoomCount} | Total Players: ${currentRealPlayerCount} | Players in Rooms: ${currentPlayerCount} | Avg Tick Time: ${avgTickTime}ms (over ${tickCount} ticks) ---`);
