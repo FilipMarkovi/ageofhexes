@@ -11,7 +11,7 @@ export const TERRAIN_BASE_DEFENSE: Record<TerrainType, number> = {
 
 export const PLAYER_COLORS = [
   "#3b4ef6", // 1. Bright Royal Blue
-  "#ff4949", // 2. Crimson Red // 
+  "#ff4949", // 2. Crimson Red //
   "#25dd68", // 3. Neon Emerald Green
   "#eab308", // 4. Vibrant Gold / Yellow
   "#a855f7", // 5. Deep Purple

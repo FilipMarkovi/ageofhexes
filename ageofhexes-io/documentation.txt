@@ -66,4 +66,4 @@ discord invite button, license
 from system/core/state, Add harbor building which unlocks - WATER WARFARE
 ---------------------------
 29.7.2026. - add ship icon and simulate ship sailing when using naval attack, balance naval attacks: players can no longer naval attack
-land tiles with HARBOR or HQ on them.
+land tiles with HARBOR or HQ on them. new map, remove defense numbers from water and bedrock

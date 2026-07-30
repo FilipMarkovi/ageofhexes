@@ -144,15 +144,6 @@ function createLobbyMarkup(): string {
 
       <div id="private-error-msg" style="color:#f87171; font:12px system-ui; display:none; text-align:center; max-width:260px;"></div>
       <div id="status" style="opacity:0.9;font:14px system-ui;margin-top:4px; text-align:center;"></div>
-
-      <div id="disclaimer" style="margin-top: 24px; display: flex; flex-direction: column; gap: 8px; max-width: 320px; text-align: center; font-family: system-ui, -apple-system, sans-serif; pointer-events: none;">
-        <div style="font-size: 11px; color: rgba(255, 255, 255, 0.45); line-height: 1.4;">
-          The game is still in active development, for any suggestions, feedback and/or bug reports join the discord server.
-        </div>
-        <div style="font-size: 10px; color: rgba(248, 113, 113, 0.45); line-height: 1.4; font-style: italic;">
-          Game currently uses a free server, if you see 0/0 players in lobby press quick play and wait for 10 seconds and then refresh the page to wake up the server
-        </div>
-      </div>
     </div>
 
     <div id="leaderboard-screen" style="display:none; flex-direction:column; gap:12px; width:min(560px, calc(100vw - 32px)); background:#0f172a; padding:18px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); box-sizing:border-box; box-shadow:0 18px 40px rgba(0,0,0,0.32);">
