@@ -196,7 +196,8 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
       if (target.building) score += 60;
       if (isHQ) score += 500;
       if (target.defense < bot.army * 0.35) score += 30;
-      if (isNavalTarget) score += 20;
+      if (isNavalTarget) score -= 15; // prefer attacks on land for other players
+      if (target.defenseHeat > 0) score += target.defenseHeat * 10;
       score *= 0.60 + aggression;
     }
 
