@@ -142,3 +142,5 @@ export const TICK_RATE = 100;
 // Private rooms
 export const MIN_PRIVATE_ROOM_PLAYERS = 2;
 export const MAX_PRIVATE_ROOM_PLAYERS = 8;
+
+export const MIN_HQ_DISTANCE = 3;

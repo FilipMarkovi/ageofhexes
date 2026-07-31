@@ -67,3 +67,8 @@ from system/core/state, Add harbor building which unlocks - WATER WARFARE
 ---------------------------
 29.7.2026. - add ship icon and simulate ship sailing when using naval attack, balance naval attacks: players can no longer naval attack
 land tiles with HARBOR or HQ on them. new map, remove defense numbers from water and bedrock
+---------------------------
+31.7.2026. - fix some bots not spawning in (mismatch between server and bot constant contrains),
+improve boat attack visual, add in game show error UI element and function, add explainings why
+an action failed for several player actions, fixed issue where bots still had the option to build
+siege outpost even while its temporarily disabled making them stuck doing nothing.

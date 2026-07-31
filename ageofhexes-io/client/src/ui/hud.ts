@@ -10,8 +10,57 @@ let displayedArmyGain = "0";
 let displayedGoldGain = "0";
 const ticking = 1000 / TICK_RATE
 let surrenderBtnEl: HTMLButtonElement | null = null;
+let errorExplainerEl: HTMLDivElement | null = null;
+let errorExplainerTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function ensureErrorExplainerElement() {
+  if (errorExplainerEl) return;
+
+  errorExplainerEl = document.createElement("div");
+  errorExplainerEl.style.position = "absolute";
+  errorExplainerEl.style.left = "50%";
+  errorExplainerEl.style.top = "82px";
+  errorExplainerEl.style.transform = "translateX(-50%)";
+  errorExplainerEl.style.zIndex = "95";
+  errorExplainerEl.style.maxWidth = "min(560px, calc(100vw - 24px))";
+  errorExplainerEl.style.padding = "10px 14px";
+  errorExplainerEl.style.borderRadius = "10px";
+  errorExplainerEl.style.border = "1px solid rgba(248, 113, 113, 0.6)";
+  errorExplainerEl.style.background = "rgba(69, 10, 10, 0.88)";
+  errorExplainerEl.style.color = "#fee2e2";
+  errorExplainerEl.style.font = "700 13px system-ui";
+  errorExplainerEl.style.textAlign = "center";
+  errorExplainerEl.style.letterSpacing = "0.2px";
+  errorExplainerEl.style.boxShadow = "0 8px 26px rgba(0,0,0,0.35)";
+  errorExplainerEl.style.backdropFilter = "blur(4px)";
+  errorExplainerEl.style.pointerEvents = "none";
+  errorExplainerEl.style.display = "none";
+
+  document.body.appendChild(errorExplainerEl);
+}
+
+export function showActionError(message: string) {
+  if (!message) return;
+
+  ensureErrorExplainerElement();
+  if (!errorExplainerEl) return;
+
+  errorExplainerEl.textContent = message;
+  errorExplainerEl.style.display = "block";
+
+  if (errorExplainerTimeout) {
+    clearTimeout(errorExplainerTimeout);
+  }
+
+  errorExplainerTimeout = setTimeout(() => {
+    if (!errorExplainerEl) return;
+    errorExplainerEl.style.display = "none";
+    errorExplainerTimeout = null;
+  }, 3000);
+}
 
 export function initHudUI(sendIntent: (intent: any) => void) {
+  ensureErrorExplainerElement();
   if (surrenderBtnEl) return;
 
   surrenderBtnEl = document.createElement("button");
@@ -227,7 +276,7 @@ const LOG_LIFETIME = 10000;
 export function addGameLog(text: string, color: string = "#ffffff") {
   gameLogs.unshift({
     id: Date.now(),
-    text,
+    text: text.replace(/_/g, " "), // Sanitize underscores for display
     color,
     timestamp: Date.now(),
     opacity: 0, // Start transparent

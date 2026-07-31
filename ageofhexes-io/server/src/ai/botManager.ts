@@ -3,6 +3,7 @@
 import type { GameRoom } from "../util/rooms.js";
 import { applyIntent } from "../../../system/index.js";
 import { bestAI } from "./simpleExpandBot.js";
+import { DEFAULT_BOT_AGGRESSION } from "../../../system/core/serverConstants.js";
 
 const botCooldowns = new Map<string, number>();
 

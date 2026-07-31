@@ -2,8 +2,9 @@
 
 import { CoreGameState, nonOwnedNeighbors, getConnectedTilesFromHQ, neighborTiles,
   hexDistance, key, Intent, canStartCapture, isAdjacentOwnedAndConnected } from "../../../system/index.js";
-import { BUILDING_COST, BUILDING_LIMIT, ARMY_CAP_PER_TILE, BASE_ARMY_MAX, HOUSE_ARMY_CAP_BONUS, EFFECT_COSTS } from "../../../shared/constants.js";
+import { BUILDING_COST, BUILDING_LIMIT, ARMY_CAP_PER_TILE, BASE_ARMY_MAX, HOUSE_ARMY_CAP_BONUS, EFFECT_COSTS, BASE_CAPTURE_COST } from "../../../shared/constants.js";
 import { PlayerId, TileState } from "../../../shared/index.js";
+import { MIN_HQ_DISTANCE } from "../../../shared/constants.js";
 
 export function shuffle<T>(arr: T[]) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -14,7 +15,6 @@ export function shuffle<T>(arr: T[]) {
 
 function getValidHQPositions(state: CoreGameState, botId: PlayerId): TileState[] {
   const validTiles: TileState[] = [];
-  const MIN_HQ_DISTANCE = 2; // Must be at least 2 tiles away from enemy spawn locations
 
   for (const tile of state.tiles.values()) {
     // 1. Block invalid terrain types and claimed tiles
@@ -44,6 +44,7 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
   const bot = state.players.get(botId);
   if (!bot || bot.eliminated || bot.status !== "PLAYING") return null;
 
+  // HQ PLACEMENT PHASE
   if (state.phase === "HQ_PLACEMENT") {
     if (state.HQLocations.has(botId)) return null;
 
@@ -102,12 +103,14 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
   const neutralFocus = territory < 18 || !hasCoreEco;
   const economyFocus = territory < 30 || labCount < 1;
 
+  // Aggression calculation based on territory, economy, and neutral focus
   let aggression = 0;
   if (!neutralFocus) aggression += 0.25;
   if (!economyFocus) aggression += 0.35;
   aggression += Math.min(0.4, Math.max(0, territory - 30) * 0.02);
   aggression = Math.min(1, aggression);
 
+  // Defense logic
   for (const axial of ownedTiles) {
     const tile = state.tiles.get(axial);
     if (!tile || !tile.capture) continue;
@@ -148,10 +151,10 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "FORT" };
   }
 
-  if (bot.gold >= BUILDING_COST["SIEGE_OUTPOST"] && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.5) {
-    const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
-    if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
-  }
+  //if (bot.gold >= BUILDING_COST["SIEGE_OUTPOST"] && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.5) {
+  //  const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
+  //  if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
+  //}
 
   if (isDesperate) return null;
 
@@ -186,18 +189,18 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
 
     if (isNeutral) {
       score += 70;
-      if (isNavalTarget) score += 45;
+      if (isNavalTarget) score += 10;
       if (isCapping) score += target.defense * 5;
     } else {
       score += 90;
-      if (target.building) score += 80;
-      if (isHQ) score += 5000;
-      if (target.defense < bot.army * 0.35) score += 140;
-      if (isNavalTarget) score += 100;
-      score *= 0.75 + aggression;
+      if (target.building) score += 60;
+      if (isHQ) score += 500;
+      if (target.defense < bot.army * 0.35) score += 30;
+      if (isNavalTarget) score += 20;
+      score *= 0.60 + aggression;
     }
 
-    if (isOptimal && target.defense > bot.army * 0.2 && !isHQ) {
+    if (isOptimal && target.defense * BASE_CAPTURE_COST > bot.army * 0.2 && !isHQ) {
       score *= 0.55;
     }
 

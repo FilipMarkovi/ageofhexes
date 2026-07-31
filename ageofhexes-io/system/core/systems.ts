@@ -823,6 +823,9 @@ export function applyEffectToPlayer(
     player.effects.push(newEffect);
   }
 
+  if (sourcePlayerId) {
+    sendPlayerLog(sourcePlayerId, `Effect  \"${type}\" applied to player ${player.username}`, "#9b1289");
+  }
   return true;
 }
 

@@ -14,11 +14,11 @@ import { drawHUD, drawTargetingHUD } from "./ui/hud.js";
 import { connect } from "./net/socket.js";
 import { clientNetState,clientUIState } from "./state/clientState.js";
 import type { CoreGameState, PlayerId } from "../../shared/index.js";
-import { buildWaterNetwork } from "../../shared/util.js";
+import { buildWaterNetwork, getHexDistance } from "../../shared/util.js";
 import { initPan } from "./input/pan.js";
 import { initZoom } from "./input/zoom.js";
 import { camera } from "./render/camera.js";
-import { HEX_SIZE } from "../../shared/constants.js";
+import { BASE_CAPTURE_COST, DEFENSE_COST_INCREMENT, HEX_SIZE, MIN_HQ_DISTANCE, DEFEND_COST_RATIO } from "../../shared/constants.js";
 import { clearBuildMode } from "./ui/buildMode.js";
 import { initKeyboard } from "./input/keyboard.js";
 import { initBuildButtons, updateBuildButtons } from "./ui/buildButtons.js";
@@ -33,6 +33,7 @@ import { clearAbilityMode } from "./ui/abilityMode.js";
 import { supabase } from "./utils/db.js";
 import { initAntiMultiTab } from "./utils/antiMultiTab.js";
 import { setupAuthAndUsername } from "./ui/lobby/auth.js";
+import { showActionError } from "./ui/hud.js";
 
 if (!(await initAntiMultiTab())) {
   throw new Error("Another AgeOfHexes tab is already running.");
@@ -239,7 +240,31 @@ canvas.addEventListener("click", () => {
   if (clientUIState.phase !== "PLAYING") return;
   if(didDrag || !hoveredHex) return
 
-  if (clientNetState.state?.phase === "HQ_PLACEMENT") {
+  const state = clientNetState.state;
+  const me = clientNetState.playerId;
+  if (!state || !me) return;
+
+  // HQ placement mode - with local checks
+  if (state.phase === "HQ_PLACEMENT") {
+    const targetTile = state.tiles.get(`${hoveredHex.q},${hoveredHex.r}`);
+    if (!targetTile) return;
+
+    // 1. Enforce terrain restrictions
+    if (targetTile.terrain === "BEDROCK" || targetTile.terrain === "WATER") {
+      showActionError(`Cannot place HQ on ${targetTile.terrain.toLowerCase()} tile.`);
+      return;
+    }
+
+    // 2. Enforce ownership and distance restrictions
+    for (const [otherPlayerId, oldHQLocation] of state.HQLocations.entries()) {
+      if (otherPlayerId === me) continue; // Skip checking against yourself
+      
+      const distance = getHexDistance(hoveredHex.q, hoveredHex.r, oldHQLocation.q, oldHQLocation.r);
+      if (distance < MIN_HQ_DISTANCE) {
+        showActionError(`Too close to an enemy HQ! Must be at least ${MIN_HQ_DISTANCE - 1} tiles away.`);
+        return;
+      }
+    }
     sendIntent({
       type: "PLACE_HQ",
       q: hoveredHex.q,
@@ -248,12 +273,18 @@ canvas.addEventListener("click", () => {
     return; 
   }
 
-  // ability select mode
+  // ability select mode - with local checks
   const activeAbility = clientUIState.selectedAbility;
   if (activeAbility) {
     const tile = clientNetState.state?.tiles.get(`${hoveredHex.q},${hoveredHex.r}`);
 
     if (tile) {
+      if (!tile.ownerId) {
+        showActionError("Cannot target a neutral tile with this ability.");
+        clearAbilityMode();
+        return; // Stop execution if the tile is unowned
+      }
+      
       sendIntent({
         type: "BUY_PLAYER_EFFECT",
         effectType: activeAbility,
@@ -265,14 +296,26 @@ canvas.addEventListener("click", () => {
     return;
   }
 
-  // BUILD MODE ACTIVE
+  // BUILD MODE ACTIVE - with local checks
   const selected = clientUIState.selectedBuilding;
   if (selected) {
     const tile = clientNetState.state?.tiles.get(
       `${hoveredHex.q},${hoveredHex.r}`
     );
 
-    if (tile && tile.ownerId === clientNetState.playerId) {
+    if (tile) {
+      if (tile.ownerId !== clientNetState.playerId) {
+        showActionError("You can only build on your own tiles.");
+        clearBuildMode();
+        return;
+      }
+
+      if (tile.building) {
+        showActionError("This tile already has a building on it.");
+        clearBuildMode();
+        return;
+      }
+
       sendIntent({
         type: "BUILD",
         q: hoveredHex.q,
@@ -286,15 +329,21 @@ canvas.addEventListener("click", () => {
     return;
   }
 
-  const state = clientNetState.state;
-  const me = clientNetState.playerId;
-  if (!state || !me) return;
-
+  // DEFEND / CAPTURE MODE
   const tile = state.tiles.get(`${hoveredHex.q},${hoveredHex.r}`);
   if (!tile) return;
 
-  // If tile is owned by me - defend
+  const mePlayer = state.players.get(me);
+  if (!mePlayer) return;
+
+  // Defense - with local checks
   if (tile.ownerId === me && tile.capture && tile.capture.by !== me) {
+    const cost = Math.ceil(tile.capture.cost * (DEFEND_COST_RATIO + (tile.defenseHeat * DEFENSE_COST_INCREMENT)));
+    if (mePlayer.army < cost) {
+      showActionError("Not enough army to defend this tile. You need at least " + cost + " army.");
+      return;
+    }
+
     sendIntent({
       type: "DEFEND",
       q: hoveredHex.q,
@@ -303,8 +352,23 @@ canvas.addEventListener("click", () => {
     return;
   }
 
-  // NORMAL MODE - capture
+  // Capture mode - with local checks
   if (tile.ownerId !== me) {
+    if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") {
+      showActionError(`Cannot capture ${tile.terrain.toLowerCase()} tile.`);
+      return; // Cannot capture these terrains
+    }
+
+    if (tile.capture) {
+      showActionError("This tile is already under capture.");
+      return; // Cannot capture a tile already under capture
+    }
+
+    if (!mePlayer || mePlayer.army < tile.defense * BASE_CAPTURE_COST) {
+      showActionError("Not enough army to capture this tile. You need at least " + (tile.defense * BASE_CAPTURE_COST) + " army.");
+      return;
+    }
+
     sendIntent({ type: "CAPTURE", q: hoveredHex.q, r: hoveredHex.r });
   }
 });
@@ -443,10 +507,10 @@ function loop() {
     // High-performance batched pipeline execution passes
     drawHexBatch(ctx, visibleTiles, HEX_SIZE);
     drawHexEffectsBatch(ctx, visibleTiles, HEX_SIZE);
-    drawWaterAttackPaths(ctx, state);
     drawBuildingsBatch(ctx, visibleTiles, HEX_SIZE);
     drawBuildingProgressBarsBatch(ctx, visibleTiles, HEX_SIZE);
     drawCaptureHexBatch(ctx, visibleTiles, HEX_SIZE, deltaTime);
+    drawWaterAttackPaths(ctx, state);
 
     if (camera.zoom > 0.75) {
       drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);
