@@ -1,8 +1,9 @@
-import type { CoreGameState, PlayerId, BuildingType, PlayerEffectType } from "../../../shared/index.js";
-import { BUILDING_COST, BUILDING_LIMIT, DEMOLISH_REFUND_RATIO, EFFECT_COSTS, EFFECT_DURATIONS } from "../../../shared/constants.js";
+import type { CoreGameState, PlayerId, BuildingType, PlayerEffectType, SiegeAttackType } from "../../../shared/index.js";
+import { BUILDING_COST, BUILDING_LIMIT, DEMOLISH_REFUND_RATIO, EFFECT_COSTS, EFFECT_DURATIONS, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES } from "../../../shared/constants.js";
 import { clientUIState } from "../state/clientState.js";
 import { toggleBuildMode } from "./buildMode.js";
 import { toggleAbilityMode } from "./abilityMode.js";
+import { toggleSiegeAttackMode } from "./siegeAttackMode.js";
 
 type BtnDef = {
   type: BuildingType;
@@ -19,7 +20,7 @@ const defs: BtnDef[] = [
   { type: "HOUSE", key: "3", label: "House", cost: BUILDING_COST["HOUSE"], limit: BUILDING_LIMIT["HOUSE"], description: "Increases maximum population size." },
   { type: "LABORATORY", key: "4", label: "Laboratory", cost: BUILDING_COST["LABORATORY"], limit: BUILDING_LIMIT["LABORATORY"], description: "Unlocks ability to buy buffs and debuffs." },
   { type: "HARBOR", key: "5", label: "Harbor", cost: BUILDING_COST["HARBOR"], limit: BUILDING_LIMIT["HARBOR"], description: "Enables attacks across water.\nMust be built next to water." },
-  //{ type: "SIEGE_OUTPOST", key: "5", label: "Siege Outpost", cost: BUILDING_COST["SIEGE_OUTPOST"], limit: BUILDING_LIMIT["SIEGE_OUTPOST"], description: "Offense oriented building that grants the ability to use special attacks within its range." },
+  { type: "SIEGE_OUTPOST", key: "6", label: "Siege Outpost", cost: BUILDING_COST["SIEGE_OUTPOST"], limit: BUILDING_LIMIT["SIEGE_OUTPOST"], description: "Offense oriented building that grants the ability to use special attacks within its range." },
 ];
 
 type ResearchDef = {
@@ -50,8 +51,29 @@ const researchDefs: ResearchDef[] = [
   }
 ];
 
+type SiegeAttackDef = {
+  type: SiegeAttackType;
+  key: string;
+  label: string;
+  cost: number;
+  range: number;
+  description: string;
+};
+
+const siegeAttackDefs: SiegeAttackDef[] = [
+  {
+    type: "BOMBARD",
+    key: "Q",
+    label: "Bombard",
+    cost: SPECIAL_ATTACK_COSTS.BOMBARD,
+    range: SPECIAL_ATTACK_RANGES.BOMBARD,
+    description: "Destroys any non-HQ building on target tile and permanently applies BROKEN GROUND.",
+  },
+];
+
 const btnByType = new Map<BuildingType, HTMLButtonElement>();
 const researchBtnByType = new Map<string, HTMLButtonElement>();
+const siegeAttackBtnByType = new Map<SiegeAttackType, HTMLButtonElement>();
 
 export function initBuildButtons() {
   // MAIN BUILDING CONTAINER (Bottom Row)
@@ -75,6 +97,17 @@ export function initBuildButtons() {
   researchContainer.style.gap = "10px";
   researchContainer.style.zIndex = "10";
   document.body.appendChild(researchContainer);
+
+  // SIEGE ATTACK CONTAINER
+  const siegeContainer = document.createElement("div");
+  siegeContainer.id = "siege-ui";
+  siegeContainer.style.position = "absolute";
+  siegeContainer.style.bottom = "104px";
+  siegeContainer.style.left = "16px";
+  siegeContainer.style.display = "flex";
+  siegeContainer.style.gap = "10px";
+  siegeContainer.style.zIndex = "10";
+  document.body.appendChild(siegeContainer);
 
   // TOOLTIP STRUCTURE
   const tooltip = document.createElement("div");
@@ -163,16 +196,54 @@ for (const r of researchDefs) {
     researchContainer.appendChild(btn);
     researchBtnByType.set(r.type, btn);
   }
+
+  // --- GENERATE SIEGE SPECIAL ATTACK BUTTONS ---
+  for (const s of siegeAttackDefs) {
+    const btn = document.createElement("button");
+    btn.textContent = `[${s.key}] ${s.label}`;
+    btn.style.padding = "6px 12px";
+    btn.style.borderRadius = "8px";
+    btn.style.border = "1px solid rgba(234, 88, 12, 0.45)";
+    btn.style.background = "rgba(124, 45, 18, 0.45)";
+    btn.style.color = "#fdba74";
+    btn.style.fontWeight = "600";
+    btn.style.fontSize = "13px";
+
+    btn.onclick = () => {
+      if (btn.disabled) return;
+      toggleSiegeAttackMode(s.type);
+    };
+
+    btn.onmouseenter = () => {
+      tooltip.innerHTML = `
+        <div style="font-weight: bold; color: #fb923c; margin-bottom: 4px;">SIEGE ATTACK: ${s.label}</div>
+        <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${s.description}</div>
+        <div style="display: flex; gap: 12px; font-size: 11px;">
+          <div style="color: #facc15; font-weight: 500;">Cost: ${s.cost} gold</div>
+          <div style="color: #fdba74; font-weight: 500;">Range: ${s.range} hex</div>
+        </div>
+      `;
+      tooltip.style.display = "block";
+      tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
+    };
+
+    btn.onmouseleave = () => tooltip.style.display = "none";
+
+    siegeContainer.appendChild(btn);
+    siegeAttackBtnByType.set(s.type, btn);
+  }
 }
 
 export function updateBuildButtons(state: CoreGameState | null, me: PlayerId | null, myPlannedBuildingCounts: Record<string, number>) {
   const container = document.getElementById("build-ui");
   const researchContainer = document.getElementById("research-ui");
-  if (!container || !researchContainer) return;
+  const siegeContainer = document.getElementById("siege-ui");
+  if (!container || !researchContainer || !siegeContainer) return;
 
   if (clientUIState.phase !== "PLAYING") {
     container.style.display = "none";
     researchContainer.style.display = "none";
+    siegeContainer.style.display = "none";
     return;
   }
 
@@ -183,7 +254,9 @@ export function updateBuildButtons(state: CoreGameState | null, me: PlayerId | n
   if (!p) return;
 
   const hasLaboratory = (p.buildings.laboratory ?? 0) > 0;
+  const hasSiegeOutpost = (p.buildings.siege_outpost ?? 0) > 0;
   researchContainer.style.display = hasLaboratory ? "flex" : "none";
+  siegeContainer.style.display = hasSiegeOutpost ? "flex" : "none";
 
   // --- UPDATE BUILD BUTTONS LOGIC ---
 for (const d of defs) {
@@ -239,5 +312,22 @@ for (const d of defs) {
     
     // Highlights purple when ability selection mode is loaded onto the player's cursor
     btn.style.outline = isSelected ? "2px solid rgba(168, 85, 247, 0.9)" : "none";
+  }
+
+  for (const s of siegeAttackDefs) {
+    const btn = siegeAttackBtnByType.get(s.type);
+    if (!btn) continue;
+
+    const canAfford = p.gold >= s.cost;
+    const isLockedOut = !hasSiegeOutpost || !canAfford;
+    const isSelected = clientUIState.selectedSpecialAttack === s.type;
+
+    btn.disabled = isLockedOut;
+    btn.textContent = `[${s.key}] ${s.label} (${s.cost}G)`;
+    btn.style.background = isLockedOut ? "rgba(30, 20, 40, 0.4)" : "rgba(124, 45, 18, 0.45)";
+    btn.style.borderColor = isLockedOut ? "rgba(255,255,255,0.1)" : "rgba(234, 88, 12, 0.6)";
+    btn.style.opacity = isLockedOut ? "0.4" : "1";
+    btn.style.cursor = isLockedOut ? "not-allowed" : "pointer";
+    btn.style.outline = isSelected ? "2px solid rgba(251, 146, 60, 0.95)" : "none";
   }
 }

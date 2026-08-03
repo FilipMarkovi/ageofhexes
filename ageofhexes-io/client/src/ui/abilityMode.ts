@@ -18,6 +18,7 @@ export function toggleAbilityMode(type: PlayerEffectType) {
 
   // Clear build mode so the player isn't trying to build AND cast at once
   clientUIState.selectedBuilding = null;
+  clientUIState.selectedSpecialAttack = null;
 
   // Toggle behavior
   if (clientUIState.selectedAbility === type) {

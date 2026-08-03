@@ -5,6 +5,7 @@ import { CoreGameState, nonOwnedNeighbors, getConnectedTilesFromHQ, neighborTile
 import { BUILDING_COST, BUILDING_LIMIT, ARMY_CAP_PER_TILE, BASE_ARMY_MAX, HOUSE_ARMY_CAP_BONUS, EFFECT_COSTS, BASE_CAPTURE_COST } from "../../../shared/constants.js";
 import { PlayerId, TileState } from "../../../shared/index.js";
 import { MIN_HQ_DISTANCE } from "../../../shared/constants.js";
+import { hasTileEffect } from "../../../system/index.js";
 
 export function shuffle<T>(arr: T[]) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -151,10 +152,10 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "FORT" };
   }
 
-  //if (bot.gold >= BUILDING_COST["SIEGE_OUTPOST"] && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.5) {
-  //  const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
-  //  if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
-  //}
+  if (bot.gold >= BUILDING_COST["SIEGE_OUTPOST"] && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.7) {
+    const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
+    if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
+  }
 
   if (isDesperate) return null;
 
@@ -247,7 +248,7 @@ function findOwnedBuildTile(
 
   for (const axial of ownedTiles) {
     const tile = state.tiles.get(axial);
-    if (!tile || tile.ownerId !== botId || tile.building || tile.buildingAction) continue;
+    if (!tile || tile.ownerId !== botId || tile.building || tile.buildingAction || hasTileEffect(tile, "BROKEN_GROUND")) continue;
 
     const borderPressure = nonOwnedNeighbors(state, tile.q, tile.r, botId).length;
     if (preferBorder && borderPressure === 0) continue;

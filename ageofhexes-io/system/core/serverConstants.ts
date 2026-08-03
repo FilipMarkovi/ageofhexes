@@ -10,7 +10,7 @@ export const TERRAIN_BASE_DEFENSE: Record<TerrainType, number> = {
 };
 
 export const PLAYER_COLORS = [
-  "#3b4ef6", // 1. Bright Royal Blue
+  "#2338fa", // 1. Bright Royal Blue
   "#ff4949", // 2. Crimson Red //
   "#25dd68", // 3. Neon Emerald Green
   "#eab308", // 4. Vibrant Gold / Yellow
@@ -18,7 +18,7 @@ export const PLAYER_COLORS = [
   "#f97316", // 6. Bright Orange
   "#06b6d4", // 7. Electric Cyan / Light Blue
   "#ff49a4", // 8. Hot Pink
-  "#79a13c", // 9. Lime Green
+  "#568313", // 9. Lime Green
   "#871f97", // 10. Dark Magenta
   "#f0df4b", // 11. Bright Lemon Yellow
   "#a30000", // 12. Raspberry Red

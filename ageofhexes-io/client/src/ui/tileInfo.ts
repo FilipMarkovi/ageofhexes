@@ -32,7 +32,7 @@ export function drawTileInfo(
   ];
 
   if (tile.building) {
-    tileLines.push({ label: "BUILDING", value: tile.building, color: "#facc15" });
+    tileLines.push({ label: "BUILDING", value: tile.building.replace(/_/g, " "), color: "#facc15" });
   }
 
   tileLines.push({ label: "BASE DEF", value: tile.baseDefense.toString() });
@@ -180,7 +180,7 @@ function renderBulletinList(
 
   effects.forEach((effect) => {
     const rawName = typeof effect === 'string' ? effect : (effect.type || effect.name || "UNKNOWN");
-    const name = rawName.toUpperCase();
+    const name = rawName.toUpperCase().replace(/_/g, " ");
     
     // Dynamic size sizing based on name text length
     const textWidth = ctx.measureText(name).width;

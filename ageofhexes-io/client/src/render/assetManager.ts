@@ -7,6 +7,10 @@ export const tileTextures = {
 
 export const buildingImages: Record<string, HTMLImageElement> = {};
 export const shipImage: { sprite: HTMLImageElement | null } = { sprite: null };
+export const projectileImages: Record<string, HTMLImageElement> = {};
+export const tileEffectImages: { brokenGround: HTMLImageElement | null } = {
+  brokenGround: null,
+};
 
 const asset_folder = "../../../assets/";
 
@@ -26,18 +30,24 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     FORT: asset_folder + "fort.png",
     LABORATORY: asset_folder + "laboratory.png",
     HARBOR: asset_folder + "harbor.png",
-    // SIEGE_OUTPOST: asset_folder + "siege_outpost.png",
+    SIEGE_OUTPOST: asset_folder + "siege_outpost.png",
     HQ: asset_folder + "hq.png",
   };
 
   const miscSources = {
     ship: asset_folder + "ship.png",
+    bombard: asset_folder + "bombard.png",
+  };
+
+  const tileEffectSources = {
+    brokenGround: asset_folder + "broken_ground.png",
   };
 
   const totalImages =
     Object.keys(tileSources).length +
     Object.keys(buildingSources).length +
-    Object.keys(miscSources).length;
+    Object.keys(miscSources).length +
+    Object.keys(tileEffectSources).length;
   let loadedCount = 0;
 
   function checkLoad() {
@@ -81,6 +91,21 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     img.src = src;
     img.onload = () => {
       if (type === "ship") shipImage.sprite = img;
+      if (type === "bombard") projectileImages.BOMBARD = img;
+      checkLoad();
+    };
+
+    img.onerror = () => {
+      checkLoad();
+    };
+  });
+
+  // Load Tile Effect Sprites
+  Object.entries(tileEffectSources).forEach(([type, src]) => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      if (type === "brokenGround") tileEffectImages.brokenGround = img;
       checkLoad();
     };
 

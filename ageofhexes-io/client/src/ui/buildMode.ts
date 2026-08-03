@@ -19,6 +19,7 @@ export function toggleBuildMode(type: BuildingType) {
 
   // clear ability so they cant build and buy ability at the same time
   clientUIState.selectedAbility = null;
+  clientUIState.selectedSpecialAttack = null;
 
   // Toggle behavior
   if (clientUIState.selectedBuilding === type) {

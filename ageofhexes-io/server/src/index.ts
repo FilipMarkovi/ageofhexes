@@ -3,6 +3,7 @@ import { MAX_INTENTS_PER_SECOND } from "../../system/core/serverConstants.js";
 import crypto from "node:crypto";
 import {
   applyIntent,
+  executePreparedSpecialAttack,
   tick,
   createWireStateDelta,
   serializeState,
@@ -49,7 +50,18 @@ export type ServerMsg =
   | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
   | { type: "LOBBY"; connected: number; required: number; roomId: string }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
-  | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number };
+  | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number }
+  | {
+      type: "SPECIAL_ATTACK_LAUNCHED";
+      attackType: string;
+      casterId: string;
+      sourceQ: number;
+      sourceR: number;
+      targetQ: number;
+      targetR: number;
+      travelMs: number;
+      serverTime?: number;
+    };
 
 interface AuthenticatedSession {
   dbId: string;      
@@ -698,7 +710,30 @@ wss.on("connection", (ws, req) => {
     const room = rooms.get(rid);
     if (!room) return;
 
-    applyIntent(room.state, playerId, intent);
+    const intentResult = applyIntent(room.state, playerId, intent);
+
+    // Special attack broadcast
+    if (intentResult?.specialAttack) {
+      const prepared = intentResult.specialAttack;
+
+      broadcastRoom(room, {
+        type: "SPECIAL_ATTACK_LAUNCHED",
+        attackType: prepared.attackType,
+        casterId: prepared.casterId,
+        sourceQ: prepared.sourceQ,
+        sourceR: prepared.sourceR,
+        targetQ: prepared.targetQ,
+        targetR: prepared.targetR,
+        travelMs: prepared.travelMs,
+        serverTime: Date.now(),
+      });
+
+      setTimeout(() => {
+        const liveRoom = rooms.get(rid);
+        if (!liveRoom || liveRoom.closing || !liveRoom.state.started || !!liveRoom.state.gameOver) return;
+        executePreparedSpecialAttack(liveRoom.state, prepared);
+      }, prepared.travelMs);
+    }
   });
 
   ws.on("close", () => {

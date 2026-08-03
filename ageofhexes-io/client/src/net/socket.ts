@@ -31,6 +31,18 @@ export type UsernameChangeResultMsg = {
   reason?: string;
 };
 
+export type SpecialAttackLaunchedMsg = {
+  type: "SPECIAL_ATTACK_LAUNCHED";
+  attackType: string;
+  casterId: string;
+  sourceQ: number;
+  sourceR: number;
+  targetQ: number;
+  targetR: number;
+  travelMs: number;
+  serverTime?: number;
+};
+
 export type ServerMsg =
   | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
   | { type: "LOBBY"; connected: number; required: number; roomId: string }
@@ -39,6 +51,7 @@ export type ServerMsg =
   | { type: "LOG"; text: string; color?: string }
   | { type: "AUTH_SUCCESS"; username?: string }
   | { type: "AUTH_FAILURE"; reason?: string }
+  | SpecialAttackLaunchedMsg
   | PrivateLobbyMsg
   | PrivateErrorMsg
   | UsernameChangeResultMsg;
@@ -57,6 +70,7 @@ export function connect(url: string, handlers: {
   onPrivateLobby?: (msg: PrivateLobbyMsg) => void;
   onPrivateError?: (reason: string) => void;
   onUsernameChangeResult?: (msg: UsernameChangeResultMsg) => void;
+  onSpecialAttackLaunched?: (msg: SpecialAttackLaunchedMsg) => void;
 }) {
   const ws = new WebSocket(url);
   let latestWireState: WireState | null = null;
@@ -103,6 +117,9 @@ export function connect(url: string, handlers: {
         break;
       case "USERNAME_CHANGE_RESULT":
         handlers.onUsernameChangeResult?.(msg);
+        break;
+      case "SPECIAL_ATTACK_LAUNCHED":
+        handlers.onSpecialAttackLaunched?.(msg);
         break;
     }
   };

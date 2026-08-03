@@ -212,16 +212,25 @@ export function drawHUD(ctx: CanvasRenderingContext2D) {
 export function drawTargetingHUD(ctx: CanvasRenderingContext2D) {
   const building = clientUIState.selectedBuilding;
   const ability = clientUIState.selectedAbility;
+  const specialAttack = clientUIState.selectedSpecialAttack;
 
-  if (!building && !ability) return;
+  if (!building && !ability && !specialAttack) return;
 
   ctx.save();
 
   const pulse = 0.6 + Math.sin(Date.now() * 0.004) * 0.4;
 
-  const titleText = building ? `🔨 CONSTRUCTING ${building}` : `🧪 CASTING ${ability!.replace("_", " ")}`;
-  const titleColor = building ? "#60a5fa" : "#c084fc"; // Blue for structural, Purple for tech
-  const accentColor = building ? "rgba(59, 130, 246, 1)" : `rgba(168, 85, 247, ${pulse})`;
+  const titleText = building
+    ? `🔨 CONSTRUCTING ${building}`
+    : ability
+      ? `🧪 CASTING ${ability.replace("_", " ")}`
+      : `💥 SIEGE ATTACK ${specialAttack!.replace("_", " ")}`;
+  const titleColor = building ? "#60a5fa" : ability ? "#c084fc" : "#fb923c";
+  const accentColor = building
+    ? "rgba(59, 130, 246, 1)"
+    : ability
+      ? `rgba(168, 85, 247, ${pulse})`
+      : `rgba(249, 115, 22, ${pulse})`;
 
   // Calculate layout dynamics dynamically based on text width
   ctx.font = "bold 13px sans-serif";

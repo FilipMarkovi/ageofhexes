@@ -1,7 +1,7 @@
 
 import type { PlayerId, TileState, BuildingType, TileEffectType, TileEffect, PlayerState,
-  PlayerEffectType, PlayerEffect } from "../../shared/index.js";
-import { calculateCaptureRate, key, neighbors, findPathOverTerrain, getClosestNavalHarborKey, isConnectedViaWaterFast, computeConnectedTilesViaHarbors } from "../../shared/util.js";
+  PlayerEffectType, PlayerEffect, SiegeAttackType, SpecialAttackDefinition } from "../../shared/index.js";
+import { calculateCaptureRate, key, neighbors, findPathOverTerrain, getClosestNavalHarborKey, isConnectedViaWaterFast, computeConnectedTilesViaHarbors, getHexDistance } from "../../shared/util.js";
 import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   HQ_DEFENSE_ADJACENT, HQ_DEFENSE_SELF, GOLD_PER_TILE, BASE_ARMY_MAX, BASE_GOLD_MAX, ARMY_CAP_PER_TILE, CAPTURE_RATE,
   GOLD_PASSIVE, ARMY_PASSIVE, BARRACKS_ARMY_BONUS, DEFEND_COST_RATIO, BUILDING_COST,
@@ -9,7 +9,8 @@ import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   DEFENSE_COST_INCREMENT, TILE_ATTACK_COOLDOWN, BUILDING_LIMIT, HOUSE_ARMY_CAP_BONUS, ARMY_PER_TILE,
   TILES_UNTIL_MAX_ATTACKTIME_INCREASE, MAX_ATTACKTIME_INCREASE, NEUTRAL_TILE_CAPTURE_GOLD,
   PLAYER_KILL_GOLD_REWARD, EFFECT_DURATIONS, EFFECT_STRENGTHS, EFFECT_COSTS, BUILDING_CONSTRUCTION_TIME,
-  BUILDING_DEMOLISH_TIME, HARBOR_ATTACK_TIME_INCREASE} from "../../shared/constants.js";
+  BUILDING_DEMOLISH_TIME, HARBOR_ATTACK_TIME_INCREASE, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES,
+  SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS} from "../../shared/constants.js";
 import type { CoreGameState } from "./state.js";
 import { handlePlaceHQ } from "./state.js";
 import { getTile, isAdjacentOwned, isAdjacentOwnedAndConnected } from "./state.js";
@@ -21,14 +22,44 @@ export type Intent =
   | { type: "BUILD"; q: number; r: number; buildingType: string }
   | { type: "DEMOLISH"; q: number; r: number }
   | { type: "DEFEND"; q: number; r: number }
+  | { type: "SPECIAL_ATTACK"; q: number; r: number; attackType: SiegeAttackType }
   | { type: "JOIN_QUEUE"; username: string }
   | { type: "RETURN_LOBBY" }
   | { type: "PING" }
   | { type: "BUY_PLAYER_EFFECT"; effectType: PlayerEffectType; targetPlayerId: PlayerId }
   | null;
 
+export type PreparedSpecialAttack = {
+  casterId: PlayerId;
+  attackType: SiegeAttackType;
+  sourceQ: number;
+  sourceR: number;
+  targetQ: number;
+  targetR: number;
+  distance: number;
+  travelMs: number;
+};
+
+export type AppliedIntentResult = {
+  specialAttack: PreparedSpecialAttack;
+} | null;
+
 const VALID_BUILDINGS = new Set<string>(Object.keys(BUILDING_COST));
 const VALID_EFFECTS = new Set<string>(Object.keys(EFFECT_COSTS));
+const VALID_SPECIAL_ATTACKS = new Set<string>(Object.keys(SPECIAL_ATTACK_COSTS));
+
+const SPECIAL_ATTACKS: Record<SiegeAttackType, SpecialAttackDefinition> = {
+  BOMBARD: {
+    cost: SPECIAL_ATTACK_COSTS.BOMBARD,
+    range: SPECIAL_ATTACK_RANGES.BOMBARD,
+    canTarget: (_state, _casterId, tile) => {
+      if (tile.building === "HQ") return false;
+      if (hasTileEffect(tile, "BROKEN_GROUND")) return false;
+      return true;
+    },
+    execute: executeBombardAttack,
+  },
+};
 
 export function captureCost(defense: number) {
   return BASE_CAPTURE_COST * defense;
@@ -190,6 +221,123 @@ function computeCaptureRateWithMode(
   return totalDurationSeconds > 0 ? (1 / totalDurationSeconds) : 0;
 }
 
+export function hasTileEffect(tile: TileState, effectType: TileEffectType): boolean {
+  return tile.effects.some((effect) => effect.type === effectType);
+}
+
+function hasConnectedSiegeOutpostInRange(
+  state: CoreGameState,
+  playerId: PlayerId,
+  q: number,
+  r: number,
+  range: number
+): { sourceQ: number; sourceR: number; distance: number } | null {
+  let best: { sourceQ: number; sourceR: number; distance: number } | null = null;
+
+  for (const sourceTile of state.tiles.values()) {
+    if (sourceTile.ownerId !== playerId) continue;
+    if (sourceTile.building !== "SIEGE_OUTPOST") continue;
+    if (!isTileConnectedToHQ(state, playerId, sourceTile.q, sourceTile.r)) continue;
+
+    const distance = getHexDistance(sourceTile.q, sourceTile.r, q, r);
+    if (distance <= range && (!best || distance < best.distance)) {
+      best = { sourceQ: sourceTile.q, sourceR: sourceTile.r, distance };
+    }
+  }
+
+  return best;
+}
+
+function executeBombardAttack(
+  state: CoreGameState,
+  casterId: PlayerId,
+  tile: TileState
+): boolean {
+  let changed = false;
+
+  if (tile.building === "HQ") return false;
+
+  if (tile.building) {
+    const owner = tile.ownerId ? state.players.get(tile.ownerId) : null;
+    if (owner) {
+      const bKey = tile.building.toLowerCase() as keyof typeof owner.buildings;
+      owner.buildings[bKey] = Math.max(0, owner.buildings[bKey] - 1);
+    }
+    tile.building = null;
+    changed = true;
+  }
+
+  if (tile.buildingAction) {
+    tile.buildingAction = null;
+    changed = true;
+  }
+
+  if (!hasTileEffect(tile, "BROKEN_GROUND")) {
+    applyEffectToTile(state, tile.q, tile.r, "BROKEN_GROUND", null, casterId);
+    changed = true;
+  }
+
+  if (changed) {
+    recalcDefense(state);
+  }
+
+  return changed;
+}
+
+export function prepareSpecialAttack(
+  state: CoreGameState,
+  casterId: PlayerId,
+  q: number,
+  r: number,
+  attackType: SiegeAttackType
+): PreparedSpecialAttack | null {
+  const caster = state.players.get(casterId);
+  const targetTile = getTile(state, q, r);
+  if (!caster || !targetTile) return null;
+
+  const attack = SPECIAL_ATTACKS[attackType];
+  if (!attack) return null;
+
+  if (caster.gold < attack.cost) return null;
+
+  const source = hasConnectedSiegeOutpostInRange(state, casterId, q, r, attack.range);
+  if (!source) return null;
+  
+  if (!attack.canTarget(state, casterId, targetTile)) return null;
+
+  const travelMs = Math.max(0, Math.round(source.distance * SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS));
+
+  modifyPlayerResources(state, caster, "gold", -attack.cost);
+  return {
+    casterId,
+    attackType,
+    sourceQ: source.sourceQ,
+    sourceR: source.sourceR,
+    targetQ: q,
+    targetR: r,
+    distance: source.distance,
+    travelMs,
+  };
+}
+
+export function executePreparedSpecialAttack(
+  state: CoreGameState,
+  prepared: PreparedSpecialAttack
+): boolean {
+  const caster = state.players.get(prepared.casterId);
+  const targetTile = getTile(state, prepared.targetQ, prepared.targetR);
+  if (!caster || !targetTile) return false;
+
+  const attack = SPECIAL_ATTACKS[prepared.attackType];
+  if (!attack) return false;
+
+  const success = attack.execute(state, prepared.casterId, targetTile);
+  if (!success) return false;
+
+  
+  return true;
+}
+
 export function tryCapture(
   state: CoreGameState,
   playerId: PlayerId,
@@ -290,6 +438,7 @@ export function tryBuild(
   if (!tile || !player) return false;
   if (tile.ownerId !== playerId) return false;
   if (tile.building !== null || tile.buildingAction !== null) return false;
+  if (hasTileEffect(tile, "BROKEN_GROUND")) return false;
   if (player.gold < BUILDING_COST[buildingType]) return false;
   if (!isTileConnectedToHQ(state, playerId, q, r)) return false;
   if (buildingType === "HARBOR") {
@@ -299,7 +448,6 @@ export function tryBuild(
     });
     if (!hasAdjacentWater) return false;
   }
-  if(buildingType == "SIEGE_OUTPOST") return false; // TEMPORARY DISABLE ATTACK BUILDINGS
   const bKey = buildingType.toLowerCase() as keyof typeof player.buildings;
 
   let constructingCount = 0;
@@ -577,30 +725,30 @@ export function tick(state: CoreGameState, dt: number) {
   }
 }
 
-export function applyIntent(state: CoreGameState, playerId: PlayerId, intent: any) {
-  if (!state?.started || state.gameOver || !intent || typeof intent !== "object") return;
+export function applyIntent(state: CoreGameState, playerId: PlayerId, intent: any): AppliedIntentResult {
+  if (!state?.started || state.gameOver || !intent || typeof intent !== "object") return null;
 
   const type = intent.type;
 
   if (type === "PLACE_HQ" && state.phase === "HQ_PLACEMENT") {
-    if (typeof intent.q !== "number" || typeof intent.r !== "number") return;
+    if (typeof intent.q !== "number" || typeof intent.r !== "number") return null;
     handlePlaceHQ(state, playerId, intent.q, intent.r);
-    return;
+    return null;
   }
 
-  if (state.phase === "HQ_PLACEMENT") return;
+  if (state.phase === "HQ_PLACEMENT") return null;
 
   // Validate Hex Coordinates for standard map actions
-  const needsCoords = ["CAPTURE", "BUILD", "DEMOLISH", "DEFEND"].includes(type);
+  const needsCoords = ["CAPTURE", "BUILD", "DEMOLISH", "DEFEND", "SPECIAL_ATTACK"].includes(type);
   if (needsCoords && (typeof intent.q !== "number" || typeof intent.r !== "number")) {
-    return; 
+    return null; 
   }
 
   if (type === "CAPTURE") {
     tryCapture(state, playerId, intent.q, intent.r);
   } 
   else if (type === "BUILD") {
-    if (!VALID_BUILDINGS.has(intent.buildingType)) return;
+    if (!VALID_BUILDINGS.has(intent.buildingType)) return null;
     tryBuild(state, playerId, intent.q, intent.r, intent.buildingType as BuildingType);
   } 
   else if (type === "DEMOLISH") {
@@ -609,12 +757,20 @@ export function applyIntent(state: CoreGameState, playerId: PlayerId, intent: an
   else if (type === "DEFEND") {
     tryDefend(state, playerId, intent.q, intent.r);
   } 
+  else if (type === "SPECIAL_ATTACK") {
+    if (!VALID_SPECIAL_ATTACKS.has(intent.attackType)) return null;
+    const prepared = prepareSpecialAttack(state, playerId, intent.q, intent.r, intent.attackType as SiegeAttackType);
+    if (!prepared) return null;
+    return { specialAttack: prepared };
+  }
   else if (type === "BUY_PLAYER_EFFECT") {
-    if (!VALID_EFFECTS.has(intent.effectType)) return;
-    if (intent.targetPlayerId !== undefined && typeof intent.targetPlayerId !== "string") return;
+    if (!VALID_EFFECTS.has(intent.effectType)) return null;
+    if (intent.targetPlayerId !== undefined && typeof intent.targetPlayerId !== "string") return null;
     
     tryBuyPlayerEffect(state, playerId, intent.effectType, intent.targetPlayerId);
   }
+
+  return null;
 }
 
 export function handlePlayerDeath(

@@ -8,7 +8,8 @@ export type TerrainType =
 export type GamePhase = "HQ_PLACEMENT" | "GAMEPLAY";
 
 export type TileEffectType = 
-  | "REINFORCED";
+  | "REINFORCED"
+  | "BROKEN_GROUND";
 
 export interface TileEffect {
   type: TileEffectType;
@@ -29,6 +30,14 @@ export interface PlayerEffect {
 export type PlayerId = string
 
 export type BuildingType = "FORT" | "BARRACKS" | "HOUSE" | "LABORATORY" | "SIEGE_OUTPOST" | "HARBOR";
+
+export type SiegeAttackType = "BOMBARD";
+export type SpecialAttackDefinition = {
+  cost: number;
+  range: number;
+  canTarget: (state: CoreGameState, casterId: PlayerId, tile: TileState) => boolean;
+  execute: (state: CoreGameState, casterId: PlayerId, tile: TileState) => boolean;
+};
 
 export type PlayerStatus =
   | "LOBBY"     // connected, not queued

@@ -1,5 +1,6 @@
 import { toggleBuildMode, clearBuildMode } from "../ui/buildMode.js";
 import { toggleAbilityMode, clearAbilityMode } from "../ui/abilityMode.js";
+import { toggleSiegeAttackMode, clearSiegeAttackMode } from "../ui/siegeAttackMode.js";
 
 
 export function initKeyboard() {
@@ -11,14 +12,16 @@ export function initKeyboard() {
     if (e.key === "3") toggleBuildMode("HOUSE");
     if (e.key === "4") toggleBuildMode("LABORATORY");
     if (e.key === "5") toggleBuildMode("HARBOR");
-    //if (e.key === "6") toggleBuildMode("SIEGE_OUTPOST")
+    if (e.key === "6") toggleBuildMode("SIEGE_OUTPOST")
 
     if (e.key === "e") toggleAbilityMode("ATTACK_SPEED")
     if (e.key === "r") toggleAbilityMode("ARMY_GAIN_BUFF")
+    if (e.key === "q") toggleSiegeAttackMode("BOMBARD")
 
     if (e.key === "Escape") {
       clearBuildMode();
       clearAbilityMode();
+      clearSiegeAttackMode();
     }
   });
 }

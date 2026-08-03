@@ -5,7 +5,7 @@ import { getStripePattern } from "./patterns.js";
 import { FILL_ALPHA, BUILDING_SIZE_MULTIPLIERS, HEX_SIZE, HARBOR_ATTACK_TIME_INCREASE } from "../../../shared/constants.js";
 import { darken } from "./playerColors.js";
 import { DEFENSE_HEAT_DECAY_MS, BUILDING_CONSTRUCTION_TIME, BUILDING_DEMOLISH_TIME } from "../../../shared/constants.js";
-import { tileTextures, buildingImages, shipImage } from "./assetManager.js";
+import { tileTextures, buildingImages, shipImage, tileEffectImages } from "./assetManager.js";
 import { getServerNow } from "../utils/time.js";
 
 /**
@@ -117,10 +117,35 @@ export function drawHexEffectsBatch(
 ) {
   const now = getServerNow();
   const renderSize = size * camera.zoom;
+  const brokenGroundImage = tileEffectImages.brokenGround;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const { x, y, tile } = item;
+
+    if (
+      brokenGroundImage &&
+      brokenGroundImage.complete &&
+      brokenGroundImage.naturalWidth > 0 &&
+      tile.effects.some((effect: any) => effect.type === "BROKEN_GROUND")
+    ) {
+      const imgSize = renderSize * 2.2;
+
+      ctx.save();
+      ctx.beginPath();
+      for (let j = 0; j < 6; j++) {
+        const angle = (Math.PI / 3) * j + Math.PI / 6;
+        const px = x + renderSize * Math.cos(angle);
+        const py = y + renderSize * Math.sin(angle);
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.clip();
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(brokenGroundImage, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+      ctx.restore();
+    }
+
     const timeSinceLast = now - (tile.lastDefendedAt || 0);
     if (timeSinceLast > DEFENSE_HEAT_DECAY_MS) continue;
 

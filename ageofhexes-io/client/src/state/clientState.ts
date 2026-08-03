@@ -1,9 +1,10 @@
 
-import type { CoreGameState } from "../../../shared/index.js";
+import type { CoreGameState, BuildingType, PlayerEffectType, SiegeAttackType } from "../../../shared/index.js";
 
 export const clientUIState = {
-  selectedBuilding: null as any,
-  selectedAbility: null as any,
+  selectedBuilding: null as BuildingType | null,
+  selectedAbility: null as PlayerEffectType | null,
+  selectedSpecialAttack: null as SiegeAttackType | null,
   phase: "LOBBY" as "LOBBY" | "QUEUED" | "PLAYING" | "GAME_OVER",
   username: "",
 };

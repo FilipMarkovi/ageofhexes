@@ -18,7 +18,7 @@ export const COLORS = {
 
 export const USERNAME_STORAGE_KEY = 'ageofhexes_guest_username';
 
-// Effects
+// Player Effects
 export const EFFECT_COSTS = {
   ATTACK_SPEED: 30 * GOLD_SCALE,
   ARMY_GAIN_BUFF: 40 * GOLD_SCALE,
@@ -33,6 +33,21 @@ export const EFFECT_STRENGTHS = {
   ATTACK_SPEED: 1.5,
   ARMY_GAIN_BUFF: 2.0,
 };
+
+export const SPECIAL_ATTACK_COSTS = {
+  BOMBARD: 50 * GOLD_SCALE,
+} as const;
+
+export const SPECIAL_ATTACK_RANGES = {
+  BOMBARD: 7,
+} as const;
+
+export const SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS = 300;
+
+// Tile Effects
+export const TILE_EFFECT_DURATIONS = {
+};
+export const REINFORCED_DEFENSE_BONUS = 2;
 
 // Conflict
 export const BASE_CAPTURE_COST = 5;

@@ -18,7 +18,7 @@ import { buildWaterNetwork, getHexDistance } from "../../shared/util.js";
 import { initPan } from "./input/pan.js";
 import { initZoom } from "./input/zoom.js";
 import { camera } from "./render/camera.js";
-import { BASE_CAPTURE_COST, DEFENSE_COST_INCREMENT, HEX_SIZE, MIN_HQ_DISTANCE, DEFEND_COST_RATIO } from "../../shared/constants.js";
+import { BASE_CAPTURE_COST, DEFENSE_COST_INCREMENT, HEX_SIZE, MIN_HQ_DISTANCE, DEFEND_COST_RATIO, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES } from "../../shared/constants.js";
 import { clearBuildMode } from "./ui/buildMode.js";
 import { initKeyboard } from "./input/keyboard.js";
 import { initBuildButtons, updateBuildButtons } from "./ui/buildButtons.js";
@@ -28,8 +28,10 @@ import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI
 import { maybeJoinPrivateRoute } from "./ui/lobby/routes.js";
 import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
+import { drawProjectiles, enqueueProjectile } from "./render/projectiles.js";
 import { initPlacementTimerUI,updatePlacementTimerUI } from "./ui/placementTimer.js";
 import { clearAbilityMode } from "./ui/abilityMode.js";
+import { clearSiegeAttackMode } from "./ui/siegeAttackMode.js";
 import { supabase } from "./utils/db.js";
 import { initAntiMultiTab } from "./utils/antiMultiTab.js";
 import { setupAuthAndUsername } from "./ui/lobby/auth.js";
@@ -114,6 +116,17 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
 
     showError("Failed to change username. Please try again.");
   },
+  onSpecialAttackLaunched: (msg) => {
+    enqueueProjectile({
+      attackType: msg.attackType,
+      sourceQ: msg.sourceQ,
+      sourceR: msg.sourceR,
+      targetQ: msg.targetQ,
+      targetR: msg.targetR,
+      travelMs: msg.travelMs,
+      serverTime: msg.serverTime,
+    });
+  },
   onState: (state) => {
     clientNetState.state = state;
 
@@ -168,6 +181,7 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
     if (!state.started) {
       hoveredHex = null;
       clientUIState.selectedBuilding = null;
+      clientUIState.selectedSpecialAttack = null;
     }
 
     handleLobbyRouteState(sendIntent);
@@ -235,7 +249,7 @@ const screenY = e.clientY - rect.top
   hoveredHex = { q, r };
 });
 
-// attack / place building / defend
+// attack / place building / defend / special attack
 canvas.addEventListener("click", () => {
   if (clientUIState.phase !== "PLAYING") return;
   if(didDrag || !hoveredHex) return
@@ -271,6 +285,66 @@ canvas.addEventListener("click", () => {
       r: hoveredHex.r
     });
     return; 
+  }
+
+  // Special attack mode - with local checks
+  const activeSpecialAttack = clientUIState.selectedSpecialAttack;
+  if (activeSpecialAttack) {
+    const tile = clientNetState.state?.tiles.get(`${hoveredHex.q},${hoveredHex.r}`);
+    const mePlayer = state.players.get(me);
+    if (!tile || !mePlayer) {
+      clearSiegeAttackMode();
+      return;
+    }
+
+    if (tile.building === "HQ") {
+      showActionError("HQ tiles cannot be targeted by this siege attack.");
+      clearSiegeAttackMode();
+      return;
+    }
+
+    if (activeSpecialAttack === "BOMBARD" && tile.effects.some((effect) => effect.type === "BROKEN_GROUND")) {
+      showActionError("This tile already has broken ground.");
+      clearSiegeAttackMode();
+      return;
+    }
+
+    const attackCost = SPECIAL_ATTACK_COSTS[activeSpecialAttack];
+    if (mePlayer.gold < attackCost) {
+      showActionError(`Not enough gold to use ${activeSpecialAttack}.`);
+      clearSiegeAttackMode();
+      return;
+    }
+
+    const connectedTiles = connectedByPlayer.get(me) ?? new Set<string>();
+    const attackRange = SPECIAL_ATTACK_RANGES[activeSpecialAttack];
+    let hasSourceInRange = false;
+
+    for (const sourceTile of state.tiles.values()) {
+      if (sourceTile.ownerId !== me) continue;
+      if (sourceTile.building !== "SIEGE_OUTPOST") continue;
+      if (!connectedTiles.has(`${sourceTile.q},${sourceTile.r}`)) continue;
+
+      if (getHexDistance(sourceTile.q, sourceTile.r, hoveredHex.q, hoveredHex.r) <= attackRange) {
+        hasSourceInRange = true;
+        break;
+      }
+    }
+
+    if (!hasSourceInRange) {
+      showActionError(`Target is outside Siege Outpost range (${attackRange} tiles).`);
+      clearSiegeAttackMode();
+      return;
+    }
+
+    sendIntent({
+      type: "SPECIAL_ATTACK",
+      attackType: activeSpecialAttack,
+      q: hoveredHex.q,
+      r: hoveredHex.r
+    });
+    clearSiegeAttackMode();
+    return;
   }
 
   // ability select mode - with local checks
@@ -312,6 +386,12 @@ canvas.addEventListener("click", () => {
 
       if (tile.building) {
         showActionError("This tile already has a building on it.");
+        clearBuildMode();
+        return;
+      }
+
+      if (tile.effects.some((effect) => effect.type === "BROKEN_GROUND")) {
+        showActionError("Cannot build on broken ground.");
         clearBuildMode();
         return;
       }
@@ -511,6 +591,7 @@ function loop() {
     drawBuildingProgressBarsBatch(ctx, visibleTiles, HEX_SIZE);
     drawCaptureHexBatch(ctx, visibleTiles, HEX_SIZE, deltaTime);
     drawWaterAttackPaths(ctx, state);
+    drawProjectiles(ctx);
 
     if (camera.zoom > 0.75) {
       drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);
