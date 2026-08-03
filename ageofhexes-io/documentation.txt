@@ -72,3 +72,6 @@ land tiles with HARBOR or HQ on them. new map, remove defense numbers from water
 improve boat attack visual, add in game show error UI element and function, add explainings why
 an action failed for several player actions, fixed issue where bots still had the option to build
 siege outpost even while its temporarily disabled making them stuck doing nothing.
+---------------------------
+3.8.2026. - Implement Siege Building, Add new special attack Bombard, implement visualisation
+for special attacks.
