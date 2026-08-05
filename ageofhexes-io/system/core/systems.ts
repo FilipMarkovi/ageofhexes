@@ -10,7 +10,7 @@ import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   TILES_UNTIL_MAX_ATTACKTIME_INCREASE, MAX_ATTACKTIME_INCREASE, NEUTRAL_TILE_CAPTURE_GOLD,
   PLAYER_KILL_GOLD_REWARD, EFFECT_DURATIONS, EFFECT_STRENGTHS, EFFECT_COSTS, BUILDING_CONSTRUCTION_TIME,
   BUILDING_DEMOLISH_TIME, HARBOR_ATTACK_TIME_INCREASE, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES,
-  SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS} from "../../shared/constants.js";
+  SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS, TERRITORY_WIN_PERCENT} from "../../shared/constants.js";
 import type { CoreGameState } from "./state.js";
 import { handlePlaceHQ } from "./state.js";
 import { getTile, isAdjacentOwned, isAdjacentOwnedAndConnected } from "./state.js";
@@ -807,6 +807,13 @@ export function checkGameOver(state: CoreGameState) {
   let aliveCount = 0;
   let lastAliveId: string | null = null;
   let realPlayerInRoom = 0;
+  let capturableTileCount = 0;
+
+  for (const tile of state.tiles.values()) {
+    if (tile.terrain !== "WATER" && tile.terrain !== "BEDROCK") {
+      capturableTileCount += 1;
+    }
+  }
 
   for (const p of state.players.values()) {
     if (!p.isBot) realPlayerInRoom++;
@@ -817,13 +824,25 @@ export function checkGameOver(state: CoreGameState) {
   }
 
   if (aliveCount <= 1 && lastAliveId) {
-    state.gameOver = { winner: lastAliveId };
+    state.gameOver = { winner: lastAliveId, reason: "ELIMINATION" };
     if (lastAliveId) {
       updatePlayerStat(lastAliveId, "placement", 1);
       updatePlayerStat(lastAliveId, "survivalTimeSeconds", Date.now());
     }
+  } else if (capturableTileCount > 0) {
+    for (const p of state.players.values()) {
+      if (p.status !== "PLAYING" || p.eliminated) continue;
+      const territorySize = state.connectedCache?.get(p.id)?.size ?? 0;
+      const territoryPercent = (territorySize / capturableTileCount) * 100;
+      if (territoryPercent >= TERRITORY_WIN_PERCENT) {
+        state.gameOver = { winner: p.id, reason: "TERRITORY" };
+        updatePlayerStat(p.id, "placement", 1);
+        updatePlayerStat(p.id, "survivalTimeSeconds", Date.now());
+        return;
+      }
+    }
   } else if (realPlayerInRoom <= 0) {
-    state.gameOver = { winner: lastAliveId ? lastAliveId : "BOTS" };
+    state.gameOver = { winner: lastAliveId ? lastAliveId : "BOTS", reason: "ELIMINATION" };
   }
 }
 

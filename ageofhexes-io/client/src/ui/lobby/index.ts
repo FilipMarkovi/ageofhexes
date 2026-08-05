@@ -1,9 +1,9 @@
-import { ROOM_CODE_LENGTH, MIN_PRIVATE_ROOM_PLAYERS, MAX_PRIVATE_ROOM_PLAYERS } from "../../../../shared/constants.js";
+import { ROOM_CODE_LENGTH, MIN_PRIVATE_ROOM_PLAYERS, MAX_PRIVATE_ROOM_PLAYERS, TERRITORY_WIN_PERCENT } from "../../../../shared/constants.js";
 import { clientNetState, clientUIState } from "../../state/clientState.js";
 import { PRIVATE_MAP_OPTIONS } from "./constants.js";
 import { setupAuthAndUsername } from "./auth.js";
 import { fetchLeaderboard } from "./leaderboard.js";
-import { getLobbyRefs, lobbyRuntime, setLobbyRefs } from "./state.js";
+import { getLobbyRefs, lobbyRuntime, scheduleLobbyUIUpdate, setLobbyRefs, setLobbyUIRefreshHandler } from "./state.js";
 import { handlePrivateLobbyUpdate as handlePrivateLobbyUpdateInternal, setPrivateView } from "./privateLobby.js";
 import { handleRouteChange, handleTopTabNavigation, initLobbyRouting, maybeJoinPrivateRoute, setLobbyTopTab, syncRouteFromState } from "./routes.js";
 import type { LeaderboardCategory, PrivateLobbyUpdateMessage } from "./types.js";
@@ -368,6 +368,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   };
 
   setLobbyRefs(refs);
+  setLobbyUIRefreshHandler(() => updateLobbyUI());
   refs.inputEl.maxLength = 15;
 
   initLobbyRouting({ sendIntent, hideError, showError });
@@ -398,6 +399,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
       refs.playBtn.textContent = "Quick Play";
       refs.inputEl.disabled = lobbyRuntime.isUserAuthenticated;
       syncRouteFromState();
+      scheduleLobbyUIUpdate();
       return;
     }
 
@@ -421,6 +423,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
     sendIntent({ type: "JOIN_QUEUE", username: name });
     syncRouteFromState();
+    scheduleLobbyUIUpdate();
   };
 
   lobbyRoot.querySelector("#btn-show-create")?.addEventListener("click", () => setPrivateView("CREATE_PRIVATE", hideError));
@@ -520,6 +523,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     setPrivateView("MAIN", hideError);
     refs.returnRoot.style.display = "none";
     syncRouteFromState();
+    scheduleLobbyUIUpdate();
   };
 
   window.addEventListener("click", (e) => {
@@ -528,6 +532,8 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
       dropdown.style.display = "none";
     }
   });
+
+  scheduleLobbyUIUpdate();
 }
 
 export function updateLobbyUI() {
@@ -582,7 +588,12 @@ export function updateLobbyUI() {
         winnerName = winner.username;
       }
       const didWin = winnerId === meId;
-      refs.endResultTextEl.textContent = didWin ? "Victory!" : `Defeat - Winner: ${winnerName}`;
+      const winReason = state.gameOver.reason === "TERRITORY"
+        ? `by owning ${TERRITORY_WIN_PERCENT}% of the territory`
+        : "by elimination";
+      refs.endResultTextEl.textContent = didWin
+        ? `Victory! You won ${winReason}`
+        : `Defeat - Winner: ${winnerName} won ${winReason}`;
 
       refs.endResultTextEl.style.color = didWin ? "#4ade80" : "#fca5a5";
     } else if (isEliminated) {
@@ -607,6 +618,7 @@ export function handlePrivateLobbyUpdate(msg: PrivateLobbyUpdateMessage) {
   lobbyRuntime.pendingPrivateJoin = null;
   handlePrivateLobbyUpdateInternal(msg, hideError);
   syncRouteFromState();
+  scheduleLobbyUIUpdate();
 }
 
 export function handleLobbyRouteState(sendIntent: (intent: any) => void) {

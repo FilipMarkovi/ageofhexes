@@ -20,7 +20,7 @@ const PLY_EFF_MAP: Record<string, number> = { ATTACK_SPEED: 0, ARMY_GAIN_BUFF: 1
 const PLY_EFF_REV = ["ATTACK_SPEED", "ARMY_GAIN_BUFF"] as const;
 
 // Top level array format:
-// [ phase, started, placementTime, gameOverWinnerSlot, mapId, mapName, players[], tiles[], hqLocs[] ]
+// [ phase, started, placementTime, gameOver, mapId, mapName, players[], tiles[], hqLocs[] ]
 export type WireState = any[]; 
 
 export type WireArrayDelta = [newLength: number, changes: Array<[index: number, value: any]>];
@@ -223,7 +223,12 @@ export function serializeState(state: CoreGameState): WireState {
     PHASE_MAP[state.phase],                              // 0
     state.started ? 1 : 0,                               // 1
     state.placementTimeLeft ?? null,                     // 2
-    state.gameOver ? playerSlots.get(state.gameOver.winner) ?? null : null, // 3
+    state.gameOver
+      ? [
+          playerSlots.get(state.gameOver.winner) ?? null,
+          state.gameOver.reason === "TERRITORY" ? 1 : 0
+        ]
+      : null,                                            // 3
     state.mapId,                                         // 4
     state.mapName,                                       // 5
     playersArr,                                          // 6
@@ -340,13 +345,18 @@ export function deserializeState(raw: WireState): CoreGameState {
   }
 
   // 4. Return Assembly
-  const goWinnerSlot = raw[3];
+  const goRaw = raw[3];
   
   return {
     phase: PHASE_REV[raw[0]] as any,
     started: raw[1] === 1,
     placementTimeLeft: raw[2],
-    gameOver: goWinnerSlot !== null ? { winner: getPId(goWinnerSlot)! } : null,
+    gameOver: goRaw !== null
+      ? {
+          winner: getPId(goRaw[0])!,
+          reason: goRaw[1] === 1 ? "TERRITORY" : "ELIMINATION"
+        }
+      : null,
     mapId: raw[4],
     mapName: raw[5],
     players,

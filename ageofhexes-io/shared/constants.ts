@@ -126,6 +126,7 @@ export const ARMY_PASSIVE = 1;
 
 export const NEUTRAL_TILE_CAPTURE_GOLD = 1 * GOLD_SCALE;
 export const PLAYER_KILL_GOLD_REWARD = 20 * GOLD_SCALE;
+export const TERRITORY_WIN_PERCENT = 70;
 
 export const ARMY_PEAK = 0.6;
 export const GOLD_PEAK = 0.4;

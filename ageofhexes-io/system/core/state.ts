@@ -9,7 +9,7 @@ export interface CoreGameState {
   tiles: Map<string, TileState>;
   players: Map<PlayerId, PlayerState>;
   started: boolean;
-  gameOver: null | { winner: PlayerId; };
+  gameOver: null | { winner: PlayerId; reason: "ELIMINATION" | "TERRITORY"; };
   connectedCache?: Map<PlayerId, Set<string>> | null;
   waterNetwork?: WaterNetwork | null;
   mapId: null | string;

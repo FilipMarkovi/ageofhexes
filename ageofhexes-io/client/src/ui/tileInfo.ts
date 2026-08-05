@@ -111,13 +111,23 @@ export function drawTileInfo(
   // CARD 2: PLAYER / OWNER INFORMATION (Only shows if tile has an owner)
   // ==========================================
   if (owner) {
+    const ownedTerritory = connectedByPlayer.get(owner.id)?.size ?? 0;
+    const capturableTileCount = Array.from(state.tiles.values()).reduce((sum, stateTile) => {
+      return stateTile.terrain !== "WATER" && stateTile.terrain !== "BEDROCK"
+        ? sum + 1
+        : sum;
+    }, 0);
+    const territoryPercent = capturableTileCount > 0
+      ? Math.round((ownedTerritory / capturableTileCount) * 100)
+      : 0;
+
     const playerLines: { label: string; value: string; color?: string }[] = [
       { label: "OWNER", value: ownerName, color: ownerColor }
     ];
 
     playerLines.push({ label: "ARMY", value: Math.round(owner.army).toLocaleString(), color: "#ef4444" });
     playerLines.push({ label: "GOLD", value: Math.round(owner.gold).toLocaleString(), color: "#fbbf24" });
-    playerLines.push({ label: "TERRITORY SIZE", value: `${connectedByPlayer.get(owner.id)?.size ?? 0}`, color: "#9ca3af" });
+    playerLines.push({ label: "TERRITORY SIZE", value: `${ownedTerritory} (${territoryPercent}%)`, color: "#9ca3af" });
 
     let playerCardHeight = padding * 2 + playerLines.length * lineHeight;
     const hasPlayerEffects = owner.effects && owner.effects.length > 0;

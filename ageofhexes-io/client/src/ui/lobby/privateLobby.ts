@@ -1,5 +1,5 @@
 import { escapeHtml, getPrivateMapLabel } from "./helpers.js";
-import { getLobbyRefs, lobbyRuntime } from "./state.js";
+import { getLobbyRefs, lobbyRuntime, scheduleLobbyUIUpdate } from "./state.js";
 import type { PrivateLobbyUpdateMessage, PrivateViewMode } from "./types.js";
 
 export function setPrivateView(view: PrivateViewMode, hideError: () => void) {
@@ -11,6 +11,7 @@ export function setPrivateView(view: PrivateViewMode, hideError: () => void) {
   refs.createPrivateContainer.style.display = view === "CREATE_PRIVATE" ? "flex" : "none";
   refs.joinPrivateContainer.style.display = view === "JOIN_PRIVATE" ? "flex" : "none";
   refs.inPrivateLobbyContainer.style.display = view === "IN_PRIVATE_LOBBY" ? "flex" : "none";
+  scheduleLobbyUIUpdate();
 }
 
 export function handlePrivateLobbyUpdate(msg: PrivateLobbyUpdateMessage, hideError: () => void) {

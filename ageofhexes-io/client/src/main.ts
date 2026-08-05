@@ -24,7 +24,8 @@ import { initKeyboard } from "./input/keyboard.js";
 import { initBuildButtons, updateBuildButtons } from "./ui/buildButtons.js";
 import { getConnectedTilesFromHQ_Client } from "./utils/supply.js";
 import { drawTileInfo } from "./ui/tileInfo.js";
-import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI, showError, showSuccess, updateLobbyUI } from "./ui/lobby/index.js";
+import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI, showError, showSuccess } from "./ui/lobby/index.js";
+import { scheduleLobbyUIUpdate } from "./ui/lobby/state.js";
 import { maybeJoinPrivateRoute } from "./ui/lobby/routes.js";
 import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
@@ -68,10 +69,13 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
     if (session && session.access_token) {
       tryAuth(session.access_token);
     }
+
+    scheduleLobbyUIUpdate();
   },
   onLobby: (connected, required, roomId) => {
     clientNetState.lobby = { connected, required, roomId };
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
+    scheduleLobbyUIUpdate();
   },
   onLog: (text, color) => {
     addGameLog(text, color);
@@ -185,6 +189,7 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
     }
 
     handleLobbyRouteState(sendIntent);
+    scheduleLobbyUIUpdate();
   }
 });
 
@@ -510,7 +515,6 @@ function loop() {
   const state = clientNetState.state as CoreGameState | null;
   const me = clientNetState.playerId;
 
-  updateLobbyUI();
   updatePlacementTimerUI(state);
   updateBuildButtons(state, me, myPlannedBuildingCounts);
 

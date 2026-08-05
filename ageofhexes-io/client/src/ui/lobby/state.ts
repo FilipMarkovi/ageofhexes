@@ -41,7 +41,9 @@ export const lobbyRuntime = {
   currentLeaderboardTab: "wins" as LeaderboardCategory,
   pendingPrivateJoin: null as { roomId: string | null; code: string } | null,
   attemptedPrivateJoinKey: null as string | null,
-  leaderboardCache: new Map<LeaderboardCategory, { data: LeaderboardEntry[]; timestamp: number }>()
+  leaderboardCache: new Map<LeaderboardCategory, { data: LeaderboardEntry[]; timestamp: number }>(),
+  scheduledUiUpdate: false,
+  uiRefreshHandler: null as (() => void) | null
 };
 
 export function setLobbyRefs(refs: LobbyRefs) {
@@ -53,4 +55,20 @@ export function getLobbyRefs(): LobbyRefs {
     throw new Error("Lobby UI has not been initialized yet.");
   }
   return lobbyRuntime.refs;
+}
+
+export function setLobbyUIRefreshHandler(handler: () => void) {
+  lobbyRuntime.uiRefreshHandler = handler;
+}
+
+export function scheduleLobbyUIUpdate() {
+  if (lobbyRuntime.scheduledUiUpdate || !lobbyRuntime.uiRefreshHandler) {
+    return;
+  }
+
+  lobbyRuntime.scheduledUiUpdate = true;
+  queueMicrotask(() => {
+    lobbyRuntime.scheduledUiUpdate = false;
+    lobbyRuntime.uiRefreshHandler?.();
+  });
 }
