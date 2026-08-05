@@ -59,7 +59,9 @@
   <style>
     body { margin: 0; background: #111; color: white; overflow: hidden; }
     canvas { display: block; }
-    #copyright {
+
+    /* Combined Footer Container */
+    #footer-info {
       position: absolute;
       bottom: 8px;
       left: 50%;
@@ -67,15 +69,30 @@
       font-family: system-ui, -apple-system, sans-serif;
       font-size: 10px;
       color: rgba(255, 255, 255, 0.4);
-      pointer-events: none;
       z-index: 200;
       white-space: nowrap;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    /* Links inside credits matching the text color & style */
+    #footer-info a {
+      color: inherit;
+      text-decoration: underline;
+    }
+    #copyright {
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
-  <div id="copyright"> &copy; 2026 Age of Hexes&trade;. All rights reserved.</div>
+  <div id="footer-info">
+    <div id="copyright">&copy; 2026 Age of Hexes&trade;. All rights reserved.</div>
+    <div id="credits">Icons by Lorcc & Delapouite (<a href="https://game-icons.net" target="_blank" rel="noopener noreferrer">game-icons.net</a>) / CC BY 3.0</div>
+  </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
