@@ -551,9 +551,9 @@ export function updateLobbyUI() {
   refs.lobbyRoot.style.display =
     !state?.gameOver && isLobby ? "flex" : "none";
 
-  const copyrightEl = document.getElementById("copyright");
-  if (copyrightEl) {
-    copyrightEl.style.display = isLobby ? "block" : "none";
+  const footerinfo = document.getElementById("footer-info");
+  if (footerinfo) {
+    footerinfo.style.display = isLobby ? "block" : "none";
   }
 
   if (!lobby) {
