@@ -39,7 +39,7 @@ function createIntroLoadingScreen() {
 function createLobbyMarkup(): string {
   return `
     <div id="lobby-screen" style="display:flex; flex-direction:column; align-items:center; gap:12px; width:min(340px, calc(100vw - 32px));">
-      <div style="font:700 36px system-ui; margin-bottom: 4px; text-align:center;">Play AgeOfHexes</div>
+      <div style="font:700 36px system-ui; margin-bottom: 4px; text-align:center;">Play Age of Hexes</div>
 
       <input id="name"
         placeholder="username"
