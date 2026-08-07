@@ -33,11 +33,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 6767; // port
-const HOST = '127.0.0.1';
 const app = express();
 
 
-const server =app.listen(PORT, HOST, () => {
+const server =app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
@@ -110,19 +109,29 @@ const intentHistory = new Map<PlayerId, number[]>();
 
 const wss = new WebSocketServer({
   server,
+  verifyClient: (info, callback) => {
+    const origin = info.req.headers.origin;
+    if (
+      !origin ||
+      origin.includes("localhost") ||
+      origin.includes("ageofhexes.io") ||
+      origin.includes("itch.io") ||
+      origin.includes("html.itch.zone")
+    ) {
+      callback(true);
+    } else {
+      callback(false, 403, "Unauthorized Origin");
+    }
+  },
   perMessageDeflate: {
     zlibDeflateOptions: {
-      // Use FAST compression (level 1 or 3) to keep CPU overhead negligible
       level: 3,
       chunkSize: 1024,
     },
     zlibInflateOptions: {
       chunkSize: 10 * 1024,
     },
-    // Only compress messages larger than 1KB (skip tiny pings/intents)
     threshold: 1024, 
-    
-    // Server/Client memory optimization (prevents allocating 256KB per connection)
     serverNoContextTakeover: true,
     clientNoContextTakeover: true,
   },
