@@ -3,7 +3,7 @@
 import { CoreGameState, nonOwnedNeighbors, getConnectedTilesFromHQ, neighborTiles,
   hexDistance, key, Intent, canStartCapture, isAdjacentOwnedAndConnected } from "../../../system/index.js";
 import { BUILDING_COST, BUILDING_LIMIT, ARMY_CAP_PER_TILE, BASE_ARMY_MAX, HOUSE_ARMY_CAP_BONUS, EFFECT_COSTS, BASE_CAPTURE_COST } from "../../../shared/constants.js";
-import { PlayerId, TileState } from "../../../shared/index.js";
+import { PlayerId, TileState, getEffectiveGoldCost } from "../../../shared/index.js";
 import { MIN_HQ_DISTANCE } from "../../../shared/constants.js";
 import { hasTileEffect } from "../../../system/index.js";
 
@@ -103,6 +103,7 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
   const territory = ownedTiles.length;
   const neutralFocus = territory < 18 || !hasCoreEco;
   const economyFocus = territory < 30 || labCount < 1;
+  const canAffordGoldCost = (baseCost: number) => bot.gold >= getEffectiveGoldCost(bot, baseCost);
 
   // Aggression calculation based on territory, economy, and neutral focus
   let aggression = 0;
@@ -126,44 +127,44 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
     }
   }
 
-  if (barracksCount < BUILDING_LIMIT["BARRACKS"] && bot.gold >= BUILDING_COST["BARRACKS"]) {
+  if (barracksCount < BUILDING_LIMIT["BARRACKS"] && canAffordGoldCost(BUILDING_COST["BARRACKS"])) {
     const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, false);
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "BARRACKS" };
   }
 
   const lowCapPressure = armyRatio > 0.62 || territory >= 12;
-  if (houseCount < BUILDING_LIMIT["HOUSE"] && bot.gold >= BUILDING_COST["HOUSE"] && lowCapPressure) {
+  if (houseCount < BUILDING_LIMIT["HOUSE"] && canAffordGoldCost(BUILDING_COST["HOUSE"]) && lowCapPressure) {
     const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, false);
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "HOUSE" };
   }
 
-  if (labCount < BUILDING_LIMIT["LABORATORY"] && bot.gold >= BUILDING_COST["LABORATORY"] && hasCoreEco && territory >= 14) {
+  if (labCount < BUILDING_LIMIT["LABORATORY"] && canAffordGoldCost(BUILDING_COST["LABORATORY"]) && hasCoreEco && territory >= 14) {
     const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, false);
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "LABORATORY" };
   }
 
-  if (harborCount < BUILDING_LIMIT["HARBOR"] && bot.gold >= BUILDING_COST["HARBOR"] && territory >= 8) {
+  if (harborCount < BUILDING_LIMIT["HARBOR"] && canAffordGoldCost(BUILDING_COST["HARBOR"]) && territory >= 8) {
     const harborTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, false, true);
     if (harborTile) return { type: "BUILD", q: harborTile.q, r: harborTile.r, buildingType: "HARBOR" };
   }
 
-  if (fortCount < BUILDING_LIMIT["FORT"] && bot.gold >= BUILDING_COST["FORT"] && aggression > 0.2) {
+  if (fortCount < BUILDING_LIMIT["FORT"] && canAffordGoldCost(BUILDING_COST["FORT"]) && aggression > 0.2) {
     const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "FORT" };
   }
 
-  if (bot.gold >= BUILDING_COST["SIEGE_OUTPOST"] && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.7) {
+  if (canAffordGoldCost(BUILDING_COST["SIEGE_OUTPOST"]) && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.7) {
     const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
   }
 
   if (isDesperate) return null;
 
-  if (labCount > 0 && !hasEffect(bot, "ARMY_GAIN_BUFF") && bot.gold >= EFFECT_COSTS.ARMY_GAIN_BUFF && armyRatio < 0.65) {
+  if (labCount > 0 && !hasEffect(bot, "ARMY_GAIN_BUFF") && canAffordGoldCost(EFFECT_COSTS.ARMY_GAIN_BUFF) && armyRatio < 0.65) {
     return { type: "BUY_PLAYER_EFFECT", effectType: "ARMY_GAIN_BUFF", targetPlayerId: botId };
   }
 
-  if (labCount > 0 && aggression > 0.35 && !hasEffect(bot, "ATTACK_SPEED") && bot.gold >= EFFECT_COSTS.ATTACK_SPEED && armyRatio > 0.45) {
+  if (labCount > 0 && aggression > 0.35 && !hasEffect(bot, "ATTACK_SPEED") && canAffordGoldCost(EFFECT_COSTS.ATTACK_SPEED) && armyRatio > 0.45) {
     return { type: "BUY_PLAYER_EFFECT", effectType: "ATTACK_SPEED", targetPlayerId: botId };
   }
 

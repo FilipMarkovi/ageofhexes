@@ -76,3 +76,6 @@ siege outpost even while its temporarily disabled making them stuck doing nothin
 3.8.2026. - Implement Siege Building, Add new special attack Bombard, implement visualisation
 for special attacks. add 70% of all capturable tiles owned win condition, move update lobby
 out of the main render loop on client
+---------------------------
+7.8.2026. - Add new Hiperinflation debuff, update to Bombard projectile sprite and
+make the projectile spin while flying

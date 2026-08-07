@@ -14,6 +14,7 @@ type ProjectileInstance = {
 };
 
 const projectiles: ProjectileInstance[] = [];
+const PROJECTILE_ROTATION_PERIOD_MS = 1750;
 
 function axialToScreen(q: number, r: number, canvas: HTMLCanvasElement) {
   const worldX = HEX_SIZE * (Math.sqrt(3) * q + (Math.sqrt(3) / 2) * r);
@@ -73,7 +74,12 @@ export function drawProjectiles(ctx: CanvasRenderingContext2D) {
     const sprite = projectileImages[p.attackType];
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
       const size = Math.max(12, 26 * camera.zoom);
-      ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+      const angle = ((now - p.startAt) / PROJECTILE_ROTATION_PERIOD_MS) * Math.PI * 2;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+      ctx.restore();
       continue;
     }
 

@@ -16,8 +16,8 @@ const STATUS_REV = ["LOBBY", "QUEUED", "PLAYING", "ELIMINATED"] as const;
 const TILE_EFF_MAP: Record<string, number> = { REINFORCED: 0, BROKEN_GROUND: 1 };
 const TILE_EFF_REV = ["REINFORCED", "BROKEN_GROUND"] as const;
 
-const PLY_EFF_MAP: Record<string, number> = { ATTACK_SPEED: 0, ARMY_GAIN_BUFF: 1 };
-const PLY_EFF_REV = ["ATTACK_SPEED", "ARMY_GAIN_BUFF"] as const;
+const PLY_EFF_MAP: Record<string, number> = { ATTACK_SPEED: 0, ARMY_GAIN_BUFF: 1, HYPERINFLATION: 2 };
+const PLY_EFF_REV = ["ATTACK_SPEED", "ARMY_GAIN_BUFF", "HYPERINFLATION"] as const;
 
 // Top level array format:
 // [ phase, started, placementTime, gameOver, mapId, mapName, players[], tiles[], hqLocs[] ]

@@ -1,7 +1,8 @@
 
 import type { PlayerId, TileState, BuildingType, TileEffectType, TileEffect, PlayerState,
   PlayerEffectType, PlayerEffect, SiegeAttackType, SpecialAttackDefinition } from "../../shared/index.js";
-import { calculateCaptureRate, key, neighbors, findPathOverTerrain, getClosestNavalHarborKey, isConnectedViaWaterFast, computeConnectedTilesViaHarbors, getHexDistance } from "../../shared/util.js";
+import { calculateCaptureRate, key, neighbors, findPathOverTerrain, getClosestNavalHarborKey,
+   isConnectedViaWaterFast, computeConnectedTilesViaHarbors, getHexDistance, getEffectiveGoldCost } from "../../shared/util.js";
 import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   HQ_DEFENSE_ADJACENT, HQ_DEFENSE_SELF, GOLD_PER_TILE, BASE_ARMY_MAX, BASE_GOLD_MAX, ARMY_CAP_PER_TILE, CAPTURE_RATE,
   GOLD_PASSIVE, ARMY_PASSIVE, BARRACKS_ARMY_BONUS, DEFEND_COST_RATIO, BUILDING_COST,
@@ -299,7 +300,8 @@ export function prepareSpecialAttack(
   const attack = SPECIAL_ATTACKS[attackType];
   if (!attack) return null;
 
-  if (caster.gold < attack.cost) return null;
+  const effectiveAttackCost = getEffectiveGoldCost(caster, attack.cost);
+  if (caster.gold < effectiveAttackCost) return null;
 
   const source = hasConnectedSiegeOutpostInRange(state, casterId, q, r, attack.range);
   if (!source) return null;
@@ -308,7 +310,7 @@ export function prepareSpecialAttack(
 
   const travelMs = Math.max(0, Math.round(source.distance * SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS));
 
-  modifyPlayerResources(state, caster, "gold", -attack.cost);
+  modifyPlayerResources(state, caster, "gold", -effectiveAttackCost);
   return {
     casterId,
     attackType,
@@ -440,7 +442,8 @@ export function tryBuild(
   if (tile.ownerId !== playerId) return false;
   if (tile.building !== null || tile.buildingAction !== null) return false;
   if (hasTileEffect(tile, "BROKEN_GROUND")) return false;
-  if (player.gold < BUILDING_COST[buildingType]) return false;
+  const effectiveBuildCost = getEffectiveGoldCost(player, BUILDING_COST[buildingType]);
+  if (player.gold < effectiveBuildCost) return false;
   if (!isTileConnectedToHQ(state, playerId, q, r)) return false;
   if (buildingType === "HARBOR") {
     const hasAdjacentWater = neighbors(q, r).some((n) => {
@@ -463,7 +466,7 @@ export function tryBuild(
   }
   if(player.buildings[bKey] + constructingCount >= BUILDING_LIMIT[buildingType]) return false
 
-  modifyPlayerResources(state, player, 'gold', -BUILDING_COST[buildingType]);
+  modifyPlayerResources(state, player, 'gold', -effectiveBuildCost);
 
   const durationMs = BUILDING_CONSTRUCTION_TIME[buildingType] * 1000; // in ms
   tile.buildingAction = {
@@ -955,7 +958,8 @@ export function tryBuyPlayerEffect(
   if ((caster.buildings.laboratory ?? 0) <= 0) {
     return;
   }
-  const cost = EFFECT_COSTS[effectType] ?? 9999;
+  const baseCost = EFFECT_COSTS[effectType] ?? 9999;
+  const cost = getEffectiveGoldCost(caster, baseCost);
   if (caster.gold < cost) return;
 
   // reduce gold by cost

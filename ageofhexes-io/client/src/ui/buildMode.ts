@@ -2,6 +2,7 @@ import type { BuildingType } from "../../../shared/index.js";
 import { BUILDING_COST, BUILDING_LIMIT } from "../../../shared/constants.js";
 import { clientUIState } from "../state/clientState.js";
 import { clientNetState } from "../state/clientState.js";
+import { getEffectiveGoldCost } from "../../../shared/util.js";
 
 export function toggleBuildMode(type: BuildingType) {
   const state = clientNetState.state;
@@ -11,7 +12,7 @@ export function toggleBuildMode(type: BuildingType) {
   const player = state.players.get(me);
   if (!player) return;
 
-  const cost = BUILDING_COST[type];
+  const cost = getEffectiveGoldCost(player, BUILDING_COST[type]);
   const countkey = type.toString().toLowerCase() as keyof typeof player.buildings;
 
   // not enough gold or limit reached skip

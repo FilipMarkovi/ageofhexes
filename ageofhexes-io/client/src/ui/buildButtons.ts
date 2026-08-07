@@ -1,6 +1,7 @@
 import type { CoreGameState, PlayerId, BuildingType, PlayerEffectType, SiegeAttackType } from "../../../shared/index.js";
 import { BUILDING_COST, BUILDING_LIMIT, DEMOLISH_REFUND_RATIO, EFFECT_COSTS, EFFECT_DURATIONS, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES } from "../../../shared/constants.js";
-import { clientUIState } from "../state/clientState.js";
+import { getEffectiveGoldCost, hasHyperinflation } from "../../../shared/util.js";
+import { clientUIState, clientNetState } from "../state/clientState.js";
 import { toggleBuildMode } from "./buildMode.js";
 import { toggleAbilityMode } from "./abilityMode.js";
 import { toggleSiegeAttackMode } from "./siegeAttackMode.js";
@@ -48,6 +49,14 @@ const researchDefs: ResearchDef[] = [
     cost: EFFECT_COSTS["ARMY_GAIN_BUFF"],
     description: `Boost army production by 2x for ${EFFECT_DURATIONS["ARMY_GAIN_BUFF"] / 2000}s, followed by an immediate 0.5x burnout crash for ${EFFECT_DURATIONS["ARMY_GAIN_BUFF"] / 2000}s.`,
     isBuff: true
+  },
+  {
+    type: "HYPERINFLATION",
+    key: "T",
+    label: "Hyperinflation Pulse",
+    cost: EFFECT_COSTS["HYPERINFLATION"],
+    description: `Target player pays 50% more gold for all purchases for ${EFFECT_DURATIONS["HYPERINFLATION"] / 1000}s.`,
+    isBuff: false
   }
 ];
 
@@ -74,6 +83,34 @@ const siegeAttackDefs: SiegeAttackDef[] = [
 const btnByType = new Map<BuildingType, HTMLButtonElement>();
 const researchBtnByType = new Map<string, HTMLButtonElement>();
 const siegeAttackBtnByType = new Map<SiegeAttackType, HTMLButtonElement>();
+
+let tooltipRefreshTimer: number | null = null;
+
+function stopTooltipRefresh() {
+  if (tooltipRefreshTimer !== null) {
+    window.clearInterval(tooltipRefreshTimer);
+    tooltipRefreshTimer = null;
+  }
+}
+
+function startTooltipRefresh(render: () => void) {
+  stopTooltipRefresh();
+  render();
+  tooltipRefreshTimer = window.setInterval(render, 200);
+}
+
+function getTooltipCostStyle() {
+  const state = clientNetState.state;
+  const me = clientNetState.playerId;
+  const mePlayer = state && me ? state.players.get(me) : null;
+  const inflated = hasHyperinflation(mePlayer);
+
+  return {
+    mePlayer,
+    inflated,
+    color: inflated ? "#ef4444" : "#facc15",
+  };
+}
 
 export function initBuildButtons() {
   // MAIN BUILDING CONTAINER (Bottom Row)
@@ -143,16 +180,27 @@ export function initBuildButtons() {
     btn.onclick = () => toggleBuildMode(d.type);
 
     btn.onmouseenter = () => {
-      tooltip.innerHTML = `
-        <div style="font-weight: bold; color: #facc15; margin-bottom: 4px;">${d.label}</div>
-        <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 4px;">${d.description}</div>
-        <div style="opacity: 0.7; font-size: 11px;">Cost: ${d.cost} gold | Refund: ${d.cost * DEMOLISH_REFUND_RATIO}g</div>
-      `;
+      startTooltipRefresh(() => {
+        const { mePlayer, color } = getTooltipCostStyle();
+        const effectiveCost = getEffectiveGoldCost(mePlayer, d.cost);
+
+        tooltip.innerHTML = `
+          <div style="font-weight: bold; color: #facc15; margin-bottom: 4px;">${d.label}</div>
+          <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 4px;">${d.description}</div>
+          <div style="font-size: 11px;">
+            <span style="color: ${color}; font-weight: 600;">Cost: ${effectiveCost} gold</span>
+            <span style="opacity: 0.7; color: #cbd5e1;"> | Refund: ${d.cost * DEMOLISH_REFUND_RATIO}g</span>
+          </div>
+        `;
+      });
       tooltip.style.display = "block";
       tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
     };
 
-    btn.onmouseleave = () => tooltip.style.display = "none";
+    btn.onmouseleave = () => {
+      stopTooltipRefresh();
+      tooltip.style.display = "none";
+    };
 
     container.appendChild(btn);
     btnByType.set(d.type, btn);
@@ -176,22 +224,29 @@ for (const r of researchDefs) {
     };
 
     btn.onmouseenter = () => {
-      const durationMs = EFFECT_DURATIONS[r.type] ?? 0;
-      const durationText = durationMs > 0 ? `${durationMs / 1000}s` : "Permanent";
+      startTooltipRefresh(() => {
+        const durationMs = EFFECT_DURATIONS[r.type] ?? 0;
+        const durationText = durationMs > 0 ? `${durationMs / 1000}s` : "Permanent";
+        const { mePlayer, color } = getTooltipCostStyle();
+        const effectiveCost = getEffectiveGoldCost(mePlayer, r.cost);
 
-      tooltip.innerHTML = `
-        <div style="font-weight: bold; color: #c084fc; margin-bottom: 4px;">🧪 RESEARCH: ${r.label}</div>
-        <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${r.description}</div>
-        <div style="display: flex; gap: 12px; font-size: 11px;">
-          <div style="color: #facc15; font-weight: 500;">Cost: ${r.cost} gold</div>
-          <div style="color: #a7f3d0; font-weight: 500;">Duration: ${durationText}</div>
-        </div>
-      `;
+        tooltip.innerHTML = `
+          <div style="font-weight: bold; color: #c084fc; margin-bottom: 4px;">🧪 RESEARCH: ${r.label}</div>
+          <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${r.description}</div>
+          <div style="display: flex; gap: 12px; font-size: 11px;">
+            <div style="color: ${color}; font-weight: 600;">Cost: ${effectiveCost} gold</div>
+            <div style="color: #a7f3d0; font-weight: 500;">Duration: ${durationText}</div>
+          </div>
+        `;
+      });
       tooltip.style.display = "block";
       tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
     };
 
-    btn.onmouseleave = () => tooltip.style.display = "none";
+    btn.onmouseleave = () => {
+      stopTooltipRefresh();
+      tooltip.style.display = "none";
+    };
 
     researchContainer.appendChild(btn);
     researchBtnByType.set(r.type, btn);
@@ -215,19 +270,27 @@ for (const r of researchDefs) {
     };
 
     btn.onmouseenter = () => {
-      tooltip.innerHTML = `
-        <div style="font-weight: bold; color: #fb923c; margin-bottom: 4px;">SIEGE ATTACK: ${s.label}</div>
-        <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${s.description}</div>
-        <div style="display: flex; gap: 12px; font-size: 11px;">
-          <div style="color: #facc15; font-weight: 500;">Cost: ${s.cost} gold</div>
-          <div style="color: #fdba74; font-weight: 500;">Range: ${s.range} hex</div>
-        </div>
-      `;
+      startTooltipRefresh(() => {
+        const { mePlayer, color } = getTooltipCostStyle();
+        const effectiveCost = getEffectiveGoldCost(mePlayer, s.cost);
+
+        tooltip.innerHTML = `
+          <div style="font-weight: bold; color: #fb923c; margin-bottom: 4px;">SIEGE ATTACK: ${s.label}</div>
+          <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${s.description}</div>
+          <div style="display: flex; gap: 12px; font-size: 11px;">
+            <div style="color: ${color}; font-weight: 600;">Cost: ${effectiveCost} gold</div>
+            <div style="color: #fdba74; font-weight: 500;">Range: ${s.range} hex</div>
+          </div>
+        `;
+      });
       tooltip.style.display = "block";
       tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
     };
 
-    btn.onmouseleave = () => tooltip.style.display = "none";
+    btn.onmouseleave = () => {
+      stopTooltipRefresh();
+      tooltip.style.display = "none";
+    };
 
     siegeContainer.appendChild(btn);
     siegeAttackBtnByType.set(s.type, btn);
@@ -271,7 +334,8 @@ for (const d of defs) {
     // raw value only for text string rendering displays
     const currentCount = p.buildings[buildingKey as keyof typeof p.buildings] ?? 0;
 
-    const affordable = p.gold >= d.cost;
+    const effectiveCost = getEffectiveGoldCost(p, d.cost);
+    const affordable = p.gold >= effectiveCost;
     const selected = clientUIState.selectedBuilding === d.type;
     
     // FIX: Base button validation limits entirely on total footprints!
@@ -290,7 +354,8 @@ for (const d of defs) {
     const btn = researchBtnByType.get(r.type);
     if (!btn) continue;
 
-    const canAfford = p.gold >= r.cost;
+    const effectiveCost = getEffectiveGoldCost(p, r.cost);
+    const canAfford = p.gold >= effectiveCost;
     const isLockedOut = !canAfford || !hasLaboratory;
     const isSelected = clientUIState.selectedAbility === r.type;
 
@@ -318,12 +383,13 @@ for (const d of defs) {
     const btn = siegeAttackBtnByType.get(s.type);
     if (!btn) continue;
 
-    const canAfford = p.gold >= s.cost;
+    const effectiveCost = getEffectiveGoldCost(p, s.cost);
+    const canAfford = p.gold >= effectiveCost;
     const isLockedOut = !hasSiegeOutpost || !canAfford;
     const isSelected = clientUIState.selectedSpecialAttack === s.type;
 
     btn.disabled = isLockedOut;
-    btn.textContent = `[${s.key}] ${s.label} (${s.cost}G)`;
+    btn.textContent = `[${s.key}] ${s.label} (${effectiveCost}G)`;
     btn.style.background = isLockedOut ? "rgba(30, 20, 40, 0.4)" : "rgba(124, 45, 18, 0.45)";
     btn.style.borderColor = isLockedOut ? "rgba(255,255,255,0.1)" : "rgba(234, 88, 12, 0.6)";
     btn.style.opacity = isLockedOut ? "0.4" : "1";

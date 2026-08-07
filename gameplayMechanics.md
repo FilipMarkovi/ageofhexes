@@ -78,13 +78,14 @@ Players can construct buildings to expand their capabilities. Each building has 
   * Followed by a **0.5x Army Gain Multiplier** cooldown penalty for 15 seconds.
 
 ### Debuffs
-* *None currently implemented.*
+* **Hiperinflation debuff:** Increase all prices by 50% for targeted player for 45s 
 
 ---
 
 ## 6. Siege Outpost Attacks
 
-### WORK IN PROGRESS...
+### Bombard (50G)
+Launch a heavy stone projectile onto the enemy tile destroying any buildings on it and disabling building on that tile permanently
 
 ---
 

@@ -1,5 +1,7 @@
 import type { CoreGameState, PlayerId, BuildingType, WaterBody, WaterNetwork } from "./gameTypes.js"; 
 import { CAPTURE_RATE, MAX_ATTACKTIME_INCREASE, TILES_UNTIL_MAX_ATTACKTIME_INCREASE } from "./index.js";
+import type { PlayerState } from "./index.js";
+import { EFFECT_STRENGTHS } from "./constants.js";
 
 function createZeroedBuildingCounts() {
   return {
@@ -125,6 +127,22 @@ export function hexDistance(
 export function getHexDistance(q1: number, r1: number, q2: number, r2: number): number {
   return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
 }
+
+export function hasHyperinflation(player: PlayerState | null | undefined): boolean {
+  return player?.effects.some((effect) => effect.type === "HYPERINFLATION") ?? false;
+}
+
+export function getEffectiveGoldCost(
+  player: PlayerState | null | undefined,
+  baseCost: number
+): number {
+  const inflationMultiplier = hasHyperinflation(player)
+    ? (EFFECT_STRENGTHS["HYPERINFLATION"] ?? 1.5)
+    : 1;
+
+  return Math.max(0, Math.ceil(baseCost * inflationMultiplier));
+}
+
 
 /**
  * Run ONCE at match initialization / map load.
@@ -422,3 +440,4 @@ export function computeConnectedTilesViaHarbors(
 
   return visited;
 }
+

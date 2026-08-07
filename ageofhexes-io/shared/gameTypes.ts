@@ -19,7 +19,8 @@ export interface TileEffect {
 
 export type PlayerEffectType = 
   | "ATTACK_SPEED"
-  | "ARMY_GAIN_BUFF";
+  | "ARMY_GAIN_BUFF"
+  | "HYPERINFLATION";
 
 export interface PlayerEffect {
   type: PlayerEffectType;

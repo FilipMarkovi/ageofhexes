@@ -14,7 +14,7 @@ import { drawHUD, drawTargetingHUD } from "./ui/hud.js";
 import { connect } from "./net/socket.js";
 import { clientNetState,clientUIState } from "./state/clientState.js";
 import type { CoreGameState, PlayerId } from "../../shared/index.js";
-import { buildWaterNetwork, getHexDistance } from "../../shared/util.js";
+import { buildWaterNetwork, getHexDistance, getEffectiveGoldCost } from "../../shared/util.js";
 import { initPan } from "./input/pan.js";
 import { initZoom } from "./input/zoom.js";
 import { camera } from "./render/camera.js";
@@ -308,9 +308,9 @@ canvas.addEventListener("click", () => {
       return;
     }
 
-    const attackCost = SPECIAL_ATTACK_COSTS[activeSpecialAttack];
+    const attackCost = getEffectiveGoldCost(mePlayer, SPECIAL_ATTACK_COSTS[activeSpecialAttack]);
     if (mePlayer.gold < attackCost) {
-      showActionError(`Not enough gold to use ${activeSpecialAttack}.`);
+      showActionError(`Not enough gold to use ${activeSpecialAttack}. You need ${attackCost} gold.`);
       clearSiegeAttackMode();
       return;
     }

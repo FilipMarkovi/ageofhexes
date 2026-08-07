@@ -1,6 +1,7 @@
 import type { SiegeAttackType } from "../../../shared/index.js";
 import { SPECIAL_ATTACK_COSTS } from "../../../shared/constants.js";
 import { clientUIState, clientNetState } from "../state/clientState.js";
+import { getEffectiveGoldCost } from "../../../shared/util.js";
 
 export function toggleSiegeAttackMode(type: SiegeAttackType) {
   const state = clientNetState.state;
@@ -13,7 +14,7 @@ export function toggleSiegeAttackMode(type: SiegeAttackType) {
   const hasSiegeOutpost = (player.buildings.siege_outpost ?? 0) > 0;
   if (!hasSiegeOutpost) return;
 
-  const cost = SPECIAL_ATTACK_COSTS[type];
+  const cost = getEffectiveGoldCost(player, SPECIAL_ATTACK_COSTS[type]);
   if (player.gold < cost) return;
 
   clientUIState.selectedBuilding = null;
