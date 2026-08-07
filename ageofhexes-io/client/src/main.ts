@@ -308,17 +308,24 @@ canvas.addEventListener("click", () => {
       return;
     }
 
-    if (activeSpecialAttack === "BOMBARD" && tile.effects.some((effect) => effect.type === "BROKEN_GROUND")) {
-      showActionError("This tile already has broken ground.");
-      clearSiegeAttackMode();
-      return;
-    }
-
     const attackCost = SPECIAL_ATTACK_COSTS[activeSpecialAttack];
     if (mePlayer.gold < attackCost) {
       showActionError(`Not enough gold to use ${activeSpecialAttack}.`);
       clearSiegeAttackMode();
       return;
+    }
+
+    if (activeSpecialAttack === "BOMBARD") {
+      if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") {
+        showActionError(`Cannot target ${tile.terrain.toLowerCase()} tile with Bombard.`);
+        clearSiegeAttackMode();
+        return;
+      }
+      if ( tile.effects.some((effect) => effect.type === "BROKEN_GROUND")) {
+        showActionError("This tile already has broken ground.");
+        clearSiegeAttackMode();
+        return;
+      }
     }
 
     const connectedTiles = connectedByPlayer.get(me) ?? new Set<string>();
@@ -595,11 +602,8 @@ function loop() {
     drawBuildingProgressBarsBatch(ctx, visibleTiles, HEX_SIZE);
     drawCaptureHexBatch(ctx, visibleTiles, HEX_SIZE, deltaTime);
     drawWaterAttackPaths(ctx, state);
+    if (camera.zoom > 0.75) {drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);}
     drawProjectiles(ctx);
-
-    if (camera.zoom > 0.75) {
-      drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);
-    }
 
     if (hoveredHex) {
       const hoveredTile = state.tiles.get(`${hoveredHex.q},${hoveredHex.r}`);
@@ -609,7 +613,7 @@ function loop() {
     }
   }
 
-  drawHUD(ctx);
+  drawHUD(ctx); 
   drawTargetingHUD(ctx);
   drawGameLogs(ctx);
 }

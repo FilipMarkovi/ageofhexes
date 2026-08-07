@@ -55,6 +55,7 @@ const SPECIAL_ATTACKS: Record<SiegeAttackType, SpecialAttackDefinition> = {
     canTarget: (_state, _casterId, tile) => {
       if (tile.building === "HQ") return false;
       if (hasTileEffect(tile, "BROKEN_GROUND")) return false;
+      if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") return false;
       return true;
     },
     execute: executeBombardAttack,
