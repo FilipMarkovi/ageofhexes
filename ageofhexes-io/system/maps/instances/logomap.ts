@@ -23,5 +23,5 @@ export const logomap = asciiToGameMap(
      . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
   `,
   "Logo Map",
-  8
+  10
 );

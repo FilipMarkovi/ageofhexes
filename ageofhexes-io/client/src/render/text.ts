@@ -34,7 +34,7 @@ export function drawHexTextBatch(
     
     // Read directly from the existing tile data passed down the pipeline
     const text = tile.defense.toString();
-    const hasBuilding = !!tile.building || !!tile.buildingAction;
+    const hasBuilding = !!tile.building || !!tile.buildingAction || !!tile.specialBuilding;
     
     // Shift text position upward if a structural foundation pad is present
     const targetY = hasBuilding ? (y - buildingOffset) : y;

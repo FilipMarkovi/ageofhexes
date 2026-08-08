@@ -78,6 +78,14 @@ const siegeAttackDefs: SiegeAttackDef[] = [
     range: SPECIAL_ATTACK_RANGES.BOMBARD,
     description: "Destroys any non-HQ building on target tile and permanently applies BROKEN GROUND.",
   },
+  {
+    type: "PLAGUE_BOMB",
+    key: "W",
+    label: "Plague Bomb",
+    cost: SPECIAL_ATTACK_COSTS.PLAGUE_BOMB,
+    range: SPECIAL_ATTACK_RANGES.PLAGUE_BOMB,
+    description: "Turns an enemy tile neutral, applies PLAGUED, and spawns a plague source that spreads infection over time.",
+  },
 ];
 
 const btnByType = new Map<BuildingType, HTMLButtonElement>();
@@ -303,7 +311,7 @@ export function updateBuildButtons(state: CoreGameState | null, me: PlayerId | n
   const siegeContainer = document.getElementById("siege-ui");
   if (!container || !researchContainer || !siegeContainer) return;
 
-  if (clientUIState.phase !== "PLAYING") {
+  if (clientUIState.phase !== "PLAYING" || clientNetState.state?.players.get(me ?? "")?.eliminated) {
     container.style.display = "none";
     researchContainer.style.display = "none";
     siegeContainer.style.display = "none";

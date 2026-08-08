@@ -2,7 +2,8 @@
 import type { PlayerId, TileState, BuildingType, TileEffectType, TileEffect, PlayerState,
   PlayerEffectType, PlayerEffect, SiegeAttackType, SpecialAttackDefinition } from "../../shared/index.js";
 import { calculateCaptureRate, key, neighbors, findPathOverTerrain, getClosestNavalHarborKey,
-   isConnectedViaWaterFast, computeConnectedTilesViaHarbors, getHexDistance, getEffectiveGoldCost } from "../../shared/util.js";
+   isConnectedViaWaterFast, computeConnectedTilesViaHarbors, getHexDistance, getEffectiveGoldCost, 
+   hexDistance} from "../../shared/util.js";
 import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   HQ_DEFENSE_ADJACENT, HQ_DEFENSE_SELF, GOLD_PER_TILE, BASE_ARMY_MAX, BASE_GOLD_MAX, ARMY_CAP_PER_TILE, CAPTURE_RATE,
   GOLD_PASSIVE, ARMY_PASSIVE, BARRACKS_ARMY_BONUS, DEFEND_COST_RATIO, BUILDING_COST,
@@ -11,7 +12,9 @@ import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   TILES_UNTIL_MAX_ATTACKTIME_INCREASE, MAX_ATTACKTIME_INCREASE, NEUTRAL_TILE_CAPTURE_GOLD,
   PLAYER_KILL_GOLD_REWARD, EFFECT_DURATIONS, EFFECT_STRENGTHS, EFFECT_COSTS, BUILDING_CONSTRUCTION_TIME,
   BUILDING_DEMOLISH_TIME, HARBOR_ATTACK_TIME_INCREASE, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES,
-  SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS, TERRITORY_WIN_PERCENT} from "../../shared/constants.js";
+  SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS, TERRITORY_WIN_PERCENT, PLAGUE_SPREAD_INTERVAL_MS, PLAGUE_DEFENSE_BONUS,
+  PLAGUE_RADIUS, PLAGUE_SOURCE_DEFENSE_BONUS,
+} from "../../shared/constants.js";
 import type { CoreGameState } from "./state.js";
 import { handlePlaceHQ } from "./state.js";
 import { getTile, isAdjacentOwned, isAdjacentOwnedAndConnected } from "./state.js";
@@ -61,6 +64,17 @@ const SPECIAL_ATTACKS: Record<SiegeAttackType, SpecialAttackDefinition> = {
     },
     execute: executeBombardAttack,
   },
+  PLAGUE_BOMB: {
+    cost: SPECIAL_ATTACK_COSTS.PLAGUE_BOMB,
+    range: SPECIAL_ATTACK_RANGES.PLAGUE_BOMB,
+    canTarget: (_state, _casterId, tile) => {
+      if (!tile.ownerId) return false;
+      if (tile.building || tile.buildingAction) return false;
+      if (hasTileEffect(tile, "PLAGUED")) return false;
+      return true;
+    },
+    execute: executePlagueBombAttack,
+  },
 };
 
 export function captureCost(defense: number) {
@@ -92,24 +106,32 @@ export function recalcDefense(state: CoreGameState) {
   // PASS 2: apply owned-tile modifiers
   for (const tile of state.tiles.values()) {
     const owner = tile.ownerId;
-    if (!owner) continue;
+    if (owner) {
+      if (tile.building === "FORT") {
+        applyAdjacencyBonus(
+          state,
+          tile,
+          FORT_DEFENSE_SELF,
+          FORT_DEFENSE_ADJACENT
+        );
+      } else if (tile.building === "HQ") {
+        applyAdjacencyBonus(
+          state,
+          tile,
+          HQ_DEFENSE_SELF,
+          HQ_DEFENSE_ADJACENT
+        );
+      }
+    } else {
+      // Plague effect increases defense of tile
+      if(hasTileEffect(tile, "PLAGUED")) {
+        tile.defense += PLAGUE_DEFENSE_BONUS;
 
-    if (tile.building === "FORT") {
-      applyAdjacencyBonus(
-        state,
-        tile,
-        FORT_DEFENSE_SELF,
-        FORT_DEFENSE_ADJACENT
-      );
-    }
-
-    if (tile.building === "HQ") {
-      applyAdjacencyBonus(
-        state,
-        tile,
-        HQ_DEFENSE_SELF,
-        HQ_DEFENSE_ADJACENT
-      );
+        // Double defense for Plague Source tiles
+        if (tile.specialBuilding === "PLAGUE_SOURCE") {
+          tile.defense += PLAGUE_SOURCE_DEFENSE_BONUS;
+        }
+      }
     }
 
   }
@@ -248,42 +270,6 @@ function hasConnectedSiegeOutpostInRange(
   }
 
   return best;
-}
-
-function executeBombardAttack(
-  state: CoreGameState,
-  casterId: PlayerId,
-  tile: TileState
-): boolean {
-  let changed = false;
-
-  if (tile.building === "HQ") return false;
-
-  if (tile.building) {
-    const owner = tile.ownerId ? state.players.get(tile.ownerId) : null;
-    if (owner) {
-      const bKey = tile.building.toLowerCase() as keyof typeof owner.buildings;
-      owner.buildings[bKey] = Math.max(0, owner.buildings[bKey] - 1);
-    }
-    tile.building = null;
-    changed = true;
-  }
-
-  if (tile.buildingAction) {
-    tile.buildingAction = null;
-    changed = true;
-  }
-
-  if (!hasTileEffect(tile, "BROKEN_GROUND")) {
-    applyEffectToTile(state, tile.q, tile.r, "BROKEN_GROUND", null, casterId);
-    changed = true;
-  }
-
-  if (changed) {
-    recalcDefense(state);
-  }
-
-  return changed;
 }
 
 export function prepareSpecialAttack(
@@ -485,6 +471,11 @@ export function tick(state: CoreGameState, dt: number) {
   const now = Date.now()
 
   state.connectedCache = new Map();
+  if (now - (state.lastPlagueSpreadAt ?? now) >= PLAGUE_SPREAD_INTERVAL_MS) {
+    spreadPlagueFromSources(state);
+    state.lastPlagueSpreadAt = now;
+  }
+
   for (const p of state.players.values()) {
     if (!p.eliminated && p.status === "PLAYING") {
       state.connectedCache.set(
@@ -605,8 +596,13 @@ export function tick(state: CoreGameState, dt: number) {
         t.defenseHeat = 0;
         t.lastDefendedAt = 0;
         t.capture = null;
+        if (t.specialBuilding === "PLAGUE_SOURCE") {
+          t.specialBuilding = null;
+        }
+        if (hasTileEffect(t, "PLAGUED")) {
+          t.effects = t.effects.filter(effect => effect.type !== "PLAGUED");
+        }
         updatePlayerStat(by, "tilesCaptured", 1)
-
         recalcDefense(state);
 
         if (wasHQ && prevOwner && prevOwner !== by) {
@@ -1026,4 +1022,119 @@ export function modifyPlayerResources(
     if (amount < 0 && !player.isBot)
       updatePlayerStat(player.id, 'armySpent', -amount);
   }
+}
+
+// ------------------ SPECIAL ATTACKS HELPERS ------------------------
+
+// BOMBARD
+function executeBombardAttack(
+  state: CoreGameState,
+  casterId: PlayerId,
+  tile: TileState
+): boolean {
+  let changed = false;
+
+  if (tile.building === "HQ") return false;
+
+  if (tile.building) {
+    const owner = tile.ownerId ? state.players.get(tile.ownerId) : null;
+    if (owner) {
+      const bKey = tile.building.toLowerCase() as keyof typeof owner.buildings;
+      owner.buildings[bKey] = Math.max(0, owner.buildings[bKey] - 1);
+    }
+    tile.building = null;
+    changed = true;
+  }
+
+  if (tile.buildingAction) {
+    tile.buildingAction = null;
+    changed = true;
+  }
+
+  if (!hasTileEffect(tile, "BROKEN_GROUND")) {
+    applyEffectToTile(state, tile.q, tile.r, "BROKEN_GROUND", null, casterId);
+    changed = true;
+  }
+
+  if (changed) {
+    recalcDefense(state);
+  }
+
+  return changed;
+}
+
+// PLAGUE BOMB 
+function clearTileOwnership(state: CoreGameState, tile: TileState, ownerId: PlayerId | null) {
+  if (tile.building && ownerId) {
+    const owner = state.players.get(ownerId);
+    if (owner) {
+      const bKey = tile.building.toLowerCase() as keyof typeof owner.buildings;
+      owner.buildings[bKey] = Math.max(0, owner.buildings[bKey] - 1);
+    }
+  }
+
+  tile.ownerId = null;
+  tile.building = null;
+  tile.buildingAction = null;
+  tile.capture = null;
+  tile.defenseHeat = 0;
+  tile.lastDefendedAt = 0;
+}
+
+export function executePlagueBombAttack(
+  state: CoreGameState,
+  casterId: PlayerId,
+  tile: TileState
+): boolean {
+  if (!tile.ownerId) return false;
+  if (tile.building || tile.buildingAction) return false;
+  if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") return false;
+
+  clearTileOwnership(state, tile, tile.ownerId);
+  applyEffectToTile(state, tile.q, tile.r, "PLAGUED", null, casterId);
+  tile.specialBuilding = "PLAGUE_SOURCE";
+  recalcDefense(state);
+  return true;
+}
+
+export function findNextPlagueSpreadTarget(state: CoreGameState, sourceTile: TileState): TileState | null {
+  const sourceKey = key(sourceTile.q, sourceTile.r);
+  const visited = new Set<string>([sourceKey]);
+  const queue: TileState[] = [sourceTile];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    for (const n of neighbors(current.q, current.r)) {
+      const next = getTile(state, n.q, n.r);
+      if (!next) continue;
+
+      const nextKey = key(next.q, next.r);
+      if (visited.has(nextKey)) continue;
+      visited.add(nextKey);
+      
+      if (next.terrain === "BEDROCK" || next.terrain === "WATER" || hexDistance({ q: sourceTile.q, r: sourceTile.r }, { q: next.q, r: next.r }) > PLAGUE_RADIUS) continue;
+      if (next.ownerId && next.building !== "HQ" && !hasTileEffect(next, "PLAGUED")) {
+        return next;
+      }
+
+      if (hasTileEffect(next, "PLAGUED") || next.specialBuilding === "PLAGUE_SOURCE") {
+        queue.push(next);
+      }
+    }
+  }
+
+  return null;
+}
+
+export function spreadPlagueFromSources(state: CoreGameState) {
+  for (const sourceTile of state.tiles.values()) {
+    if (sourceTile.specialBuilding !== "PLAGUE_SOURCE") continue;
+    const targetTile = findNextPlagueSpreadTarget(state, sourceTile);
+    if (!targetTile) continue;
+
+    clearTileOwnership(state, targetTile, targetTile.ownerId);
+    applyEffectToTile(state, targetTile.q, targetTile.r, "PLAGUED", null, targetTile.ownerId);
+  }
+  recalcDefense(state);
 }

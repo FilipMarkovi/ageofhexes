@@ -23,7 +23,8 @@ export function initMap(
     defenseHeat: 0,
     lastDefendedAt: 0,
     buildingAction: null,
-    effects: []
+    effects: [],
+    specialBuilding: null,
   });
   }
 

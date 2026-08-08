@@ -9,7 +9,10 @@ export type GamePhase = "HQ_PLACEMENT" | "GAMEPLAY";
 
 export type TileEffectType = 
   | "REINFORCED"
-  | "BROKEN_GROUND";
+  | "BROKEN_GROUND"
+  | "PLAGUED";
+
+export type SpecialBuildingType = "PLAGUE_SOURCE";
 
 export interface TileEffect {
   type: TileEffectType;
@@ -32,7 +35,7 @@ export type PlayerId = string
 
 export type BuildingType = "FORT" | "BARRACKS" | "HOUSE" | "LABORATORY" | "SIEGE_OUTPOST" | "HARBOR";
 
-export type SiegeAttackType = "BOMBARD";
+export type SiegeAttackType = "BOMBARD" | "PLAGUE_BOMB";
 export type SpecialAttackDefinition = {
   cost: number;
   range: number;
@@ -88,6 +91,7 @@ export interface TileState {
   } | null;
 
   effects: TileEffect[];
+  specialBuilding: SpecialBuildingType | null;
 }
 
 export interface WaterBody {
@@ -137,4 +141,5 @@ export interface CoreGameState {
   mapName: null | string;
   HQLocations: Map<PlayerId, TileState>;
   placementTimeLeft?: number;
+  lastPlagueSpreadAt?: number;
 }

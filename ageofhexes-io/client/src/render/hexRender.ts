@@ -1,4 +1,4 @@
-import type { TileState, PlayerId, BuildingType } from "../../../shared/index.js";
+import type { TileState, PlayerId, BuildingType, SpecialBuildingType } from "../../../shared/index.js";
 import { canCaptureClient } from "../utils/canCapture.js";
 import { camera } from "./camera.js";
 import { getStripePattern } from "./patterns.js";
@@ -118,6 +118,7 @@ export function drawHexEffectsBatch(
   const now = getServerNow();
   const renderSize = size * camera.zoom;
   const brokenGroundImage = tileEffectImages.brokenGround;
+  const plaguedImage = tileEffectImages.plagued;
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -143,6 +144,29 @@ export function drawHexEffectsBatch(
       ctx.clip();
       ctx.globalAlpha = 0.9;
       ctx.drawImage(brokenGroundImage, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
+      ctx.restore();
+    }
+
+    if (
+      plaguedImage &&
+      plaguedImage.complete &&
+      plaguedImage.naturalWidth > 0 &&
+      tile.effects.some((effect: any) => effect.type === "PLAGUED")
+    ) {
+      const imgSize = renderSize * 2.2;
+
+      ctx.save();
+      ctx.beginPath();
+      for (let j = 0; j < 6; j++) {
+        const angle = (Math.PI / 3) * j + Math.PI / 6;
+        const px = x + renderSize * Math.cos(angle);
+        const py = y + renderSize * Math.sin(angle);
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.clip();
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(plaguedImage, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
       ctx.restore();
     }
 
@@ -209,7 +233,7 @@ export function drawBuildingsBatch(
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const { x, y, tile } = item;
-    if (!tile.building && !tile.buildingAction) continue;
+    if (!tile.building && !tile.buildingAction && !tile.specialBuilding) continue;
 
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.beginPath();
@@ -229,17 +253,19 @@ export function drawBuildingsBatch(
     const item = items[i];
     const { x, y, tile } = item;
 
-    let type: BuildingType | "HQ" | null = null;
+    let type: BuildingType | "HQ" | SpecialBuildingType | null = null;
     if (tile.buildingAction) {
       type = tile.buildingAction.building;
     } else if (tile.building) {
       type = tile.building;
+    } else if (tile.specialBuilding) {
+      type = tile.specialBuilding;
     }
     if (!type) continue;
 
     const img = buildingImages[type];
     if (img && img.complete && img.naturalWidth !== 0) {
-      const imgSize = s * 2.4 * (BUILDING_SIZE_MULTIPLIERS.get(type) ?? 1);
+      const imgSize = s * 2.4 * (BUILDING_SIZE_MULTIPLIERS.get(type as any) ?? 1);
       ctx.drawImage(img, x - imgSize / 2, y - imgSize / 2, imgSize, imgSize);
       continue;
     }
@@ -364,6 +390,16 @@ export function drawBuildingsBatch(
         ctx.moveTo(0, s * 0.5); ctx.arc(0, s * 0.5, s * 0.1, 0, Math.PI * 2);
         ctx.moveTo(-s * 0.4, s * 0.5); ctx.arc(-s * 0.4, s * 0.5, s * 0.08, 0, Math.PI * 2);
         ctx.moveTo(s * 0.4, s * 0.5); ctx.arc(s * 0.4, s * 0.5, s * 0.08, 0, Math.PI * 2);
+        break;
+
+      case "PLAGUE_SOURCE":
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.65, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.35, 0, Math.PI * 2);
+        ctx.stroke();
         break;
     }
 

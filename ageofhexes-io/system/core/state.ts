@@ -16,6 +16,7 @@ export interface CoreGameState {
   mapName: null | string;
   HQLocations: Map<PlayerId, TileState>;
   placementTimeLeft?: number;
+  lastPlagueSpreadAt?: number;
 } // copy in shared
 
 export function createGameState(): CoreGameState {
@@ -31,6 +32,7 @@ export function createGameState(): CoreGameState {
     mapName: null,
     HQLocations: new Map(),
     placementTimeLeft: 15,
+    lastPlagueSpreadAt: Date.now(),
   };
 }
 

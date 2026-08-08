@@ -32,5 +32,6 @@ export const hexalandia = asciiToGameMap(
     . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
      . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
   `,
-  "Hexalandia"
+  "Hexalandia",
+  16
 );

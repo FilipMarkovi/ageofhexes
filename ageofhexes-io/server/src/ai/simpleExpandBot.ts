@@ -153,10 +153,10 @@ export function bestAI(state: CoreGameState, botId: PlayerId): Intent | null {
     if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "FORT" };
   }
 
-  if (canAffordGoldCost(BUILDING_COST["SIEGE_OUTPOST"]) && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.7) {
-    const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
-    if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
-  }
+  //if (canAffordGoldCost(BUILDING_COST["SIEGE_OUTPOST"]) && (bot.buildings.siege_outpost || 0) < BUILDING_LIMIT["SIEGE_OUTPOST"] && aggression > 0.7) {
+  //  const buildTile = findOwnedBuildTile(state, ownedTiles, botId, hq.q, hq.r, true);
+  //  if (buildTile) return { type: "BUILD", q: buildTile.q, r: buildTile.r, buildingType: "SIEGE_OUTPOST" };
+  //}
 
   if (isDesperate) return null;
 

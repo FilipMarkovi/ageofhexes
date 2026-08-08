@@ -1,4 +1,4 @@
-import { BuildingType } from "./gameTypes";
+import { BuildingType, SpecialBuildingType } from "./gameTypes";
 
 const GOLD_SCALE = 1;
 
@@ -38,18 +38,23 @@ export const EFFECT_STRENGTHS = {
 };
 
 export const SPECIAL_ATTACK_COSTS = {
-  BOMBARD: 50 * GOLD_SCALE,
+  BOMBARD: 45 * GOLD_SCALE,
+  PLAGUE_BOMB: 40 * GOLD_SCALE,
 } as const;
 
 export const SPECIAL_ATTACK_RANGES = {
-  BOMBARD: 7,
+  BOMBARD: 6,
+  PLAGUE_BOMB: 6,
 } as const;
 
 export const SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS = 300;
 
+export const PLAGUE_SPREAD_INTERVAL_MS = 6_000;
+export const PLAGUE_RADIUS = 3;
+export const PLAGUE_DEFENSE_BONUS = 1;
+export const PLAGUE_SOURCE_DEFENSE_BONUS = 2;
+
 // Tile Effects
-export const TILE_EFFECT_DURATIONS = {
-};
 export const REINFORCED_DEFENSE_BONUS = 2;
 
 // Conflict
@@ -74,7 +79,7 @@ export const BUILDING_COST = {
   BARRACKS: 30 * GOLD_SCALE,
   FORT: 25 * GOLD_SCALE,
   HOUSE: 20 * GOLD_SCALE,
-  LABORATORY: 50 * GOLD_SCALE,
+  LABORATORY: 40 * GOLD_SCALE,
   SIEGE_OUTPOST: 35 * GOLD_SCALE,
   HARBOR: 40 * GOLD_SCALE,
 } as const;
@@ -106,7 +111,7 @@ export const BUILDING_DEMOLISH_TIME = {
   HARBOR: 12,
 } as const;
 
-export const BUILDING_SIZE_MULTIPLIERS = new Map<BuildingType | "HQ", number>([
+export const BUILDING_SIZE_MULTIPLIERS = new Map<BuildingType | "HQ" | SpecialBuildingType, number>([
   ["HOUSE", 1],
   ["BARRACKS", 1],
   ["FORT", 1],
@@ -114,6 +119,7 @@ export const BUILDING_SIZE_MULTIPLIERS = new Map<BuildingType | "HQ", number>([
   ["SIEGE_OUTPOST", 1],
   ["HARBOR", 1],
   ["HQ", 1.2],
+  ["PLAGUE_SOURCE", 1.0]
 ]);
 
 export const DEMOLISH_REFUND_RATIO = 0.5;

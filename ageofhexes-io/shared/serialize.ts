@@ -13,8 +13,11 @@ const PHASE_REV = ["HQ_PLACEMENT", "GAMEPLAY"] as const;
 const STATUS_MAP: Record<string, number> = { LOBBY: 0, QUEUED: 1, PLAYING: 2, ELIMINATED: 3 };
 const STATUS_REV = ["LOBBY", "QUEUED", "PLAYING", "ELIMINATED"] as const;
 
-const TILE_EFF_MAP: Record<string, number> = { REINFORCED: 0, BROKEN_GROUND: 1 };
-const TILE_EFF_REV = ["REINFORCED", "BROKEN_GROUND"] as const;
+const TILE_EFF_MAP: Record<string, number> = { REINFORCED: 0, BROKEN_GROUND: 1, PLAGUED: 2 };
+const TILE_EFF_REV = ["REINFORCED", "BROKEN_GROUND", "PLAGUED"] as const;
+
+const SPECIAL_BLD_MAP: Record<string, number> = { PLAGUE_SOURCE: 0 };
+const SPECIAL_BLD_REV = ["PLAGUE_SOURCE"] as const;
 
 const PLY_EFF_MAP: Record<string, number> = { ATTACK_SPEED: 0, ARMY_GAIN_BUFF: 1, HYPERINFLATION: 2 };
 const PLY_EFF_REV = ["ATTACK_SPEED", "ARMY_GAIN_BUFF", "HYPERINFLATION"] as const;
@@ -199,7 +202,8 @@ export function serializeState(state: CoreGameState): WireState {
       ]) : null,
 
       t.defenseHeat || null,                             // 10: EXACT (CRUCIAL)
-      t.lastDefendedAt || null                           // 11: EXACT (CRUCIAL)
+      t.lastDefendedAt || null,                          // 11: EXACT (CRUCIAL)
+      t.specialBuilding ? SPECIAL_BLD_MAP[t.specialBuilding] : null // 12: Special building
     ];
 
     // TRUNCATE TAIL: Pop off any trailing nulls. 
@@ -327,7 +331,8 @@ export function deserializeState(raw: WireState): CoreGameState {
       })) : [],
 
       defenseHeat: tArr[10] ?? 0,
-      lastDefendedAt: tArr[11] ?? 0
+      lastDefendedAt: tArr[11] ?? 0,
+      specialBuilding: tArr[12] !== undefined && tArr[12] !== null ? SPECIAL_BLD_REV[tArr[12]] as any : null
     };
 
     tiles.set(`${q},${r}`, tileObj);

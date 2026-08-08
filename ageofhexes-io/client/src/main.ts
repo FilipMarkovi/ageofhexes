@@ -328,6 +328,29 @@ canvas.addEventListener("click", () => {
       }
     }
 
+    if (activeSpecialAttack === "PLAGUE_BOMB") {
+      if (tile.terrain === "BEDROCK" || tile.terrain === "WATER") {
+        showActionError(`Cannot target ${tile.terrain.toLowerCase()} tile with Plague Bomb.`);
+        clearSiegeAttackMode();
+        return;
+      }
+      if (!tile.ownerId || tile.ownerId === me) {
+        showActionError("Plague bombs must target an enemy-owned tile.");
+        clearSiegeAttackMode();
+        return;
+      }
+      if (tile.building || tile.buildingAction) {
+        showActionError("Plague bombs cannot target tiles with buildings.");
+        clearSiegeAttackMode();
+        return;
+      }
+      if (tile.effects.some((effect) => effect.type === "PLAGUED")) {
+        showActionError("This tile is already plagued.");
+        clearSiegeAttackMode();
+        return;
+      }
+    }
+
     const connectedTiles = connectedByPlayer.get(me) ?? new Set<string>();
     const attackRange = SPECIAL_ATTACK_RANGES[activeSpecialAttack];
     let hasSourceInRange = false;

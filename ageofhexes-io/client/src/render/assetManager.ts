@@ -8,8 +8,9 @@ export const tileTextures = {
 export const buildingImages: Record<string, HTMLImageElement> = {};
 export const shipImage: { sprite: HTMLImageElement | null } = { sprite: null };
 export const projectileImages: Record<string, HTMLImageElement> = {};
-export const tileEffectImages: { brokenGround: HTMLImageElement | null } = {
+export const tileEffectImages: { brokenGround: HTMLImageElement | null; plagued: HTMLImageElement | null } = {
   brokenGround: null,
+  plagued: null,
 };
 
 const asset_folder = "../../../assets/";
@@ -32,15 +33,18 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     HARBOR: asset_folder + "harbor.png",
     SIEGE_OUTPOST: asset_folder + "siege_outpost.png",
     HQ: asset_folder + "hq.png",
+    PLAGUE_SOURCE: asset_folder + "plague_source.png",
   };
 
   const miscSources = {
     ship: asset_folder + "ship.png",
     bombard: asset_folder + "bombard.png",
+    plagueBomb: asset_folder + "plague_bomb.png",
   };
 
   const tileEffectSources = {
     brokenGround: asset_folder + "broken_ground.png",
+    plagued: asset_folder + "plagued.png",
   };
 
   const totalImages =
@@ -92,6 +96,7 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     img.onload = () => {
       if (type === "ship") shipImage.sprite = img;
       if (type === "bombard") projectileImages.BOMBARD = img;
+      if (type === "plagueBomb") projectileImages.PLAGUE_BOMB = img;
       checkLoad();
     };
 
@@ -106,6 +111,7 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     img.src = src;
     img.onload = () => {
       if (type === "brokenGround") tileEffectImages.brokenGround = img;
+      if (type === "plagued") tileEffectImages.plagued = img;
       checkLoad();
     };
 
