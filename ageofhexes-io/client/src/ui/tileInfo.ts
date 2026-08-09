@@ -35,6 +35,10 @@ export function drawTileInfo(
     tileLines.push({ label: "BUILDING", value: tile.building.replace(/_/g, " "), color: "#facc15" });
   }
 
+  if (tile.specialBuilding) {
+    tileLines.push({ label: "BUILDING", value: tile.specialBuilding.replace(/_/g, " "), color: "#ae4905" });
+  }
+
   tileLines.push({ label: "BASE DEF", value: tile.baseDefense.toString() });
   tileLines.push({ label: "TOTAL DEF", value: tile.defense.toString(), color: "#f97316" });
 

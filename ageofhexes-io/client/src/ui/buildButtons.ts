@@ -37,7 +37,7 @@ const researchDefs: ResearchDef[] = [
   { 
     type: "ATTACK_SPEED", 
     key: "E", 
-    label: "Stardust Catalyst", 
+    label: "Blitz Attacks", 
     cost: EFFECT_COSTS["ATTACK_SPEED"],
     description: "Instantly injects an adrenaline buff boosting tile capture speeds by 50%.",
     isBuff: true
@@ -45,7 +45,7 @@ const researchDefs: ResearchDef[] = [
   {
     type: "ARMY_GAIN_BUFF", 
     key: "R",
-    label: "Overclock Protocol",
+    label: "Overclock",
     cost: EFFECT_COSTS["ARMY_GAIN_BUFF"],
     description: `Boost army production by 2x for ${EFFECT_DURATIONS["ARMY_GAIN_BUFF"] / 2000}s, followed by an immediate 0.5x burnout crash for ${EFFECT_DURATIONS["ARMY_GAIN_BUFF"] / 2000}s.`,
     isBuff: true
@@ -53,7 +53,7 @@ const researchDefs: ResearchDef[] = [
   {
     type: "HYPERINFLATION",
     key: "T",
-    label: "Hyperinflation Pulse",
+    label: "Hyperinflation",
     cost: EFFECT_COSTS["HYPERINFLATION"],
     description: `Target player pays 50% more gold for all purchases for ${EFFECT_DURATIONS["HYPERINFLATION"] / 1000}s.`,
     isBuff: false
@@ -89,10 +89,27 @@ const siegeAttackDefs: SiegeAttackDef[] = [
 ];
 
 const btnByType = new Map<BuildingType, HTMLButtonElement>();
-const researchBtnByType = new Map<string, HTMLButtonElement>();
+const researchBtnByType = new Map<PlayerEffectType, HTMLButtonElement>();
 const siegeAttackBtnByType = new Map<SiegeAttackType, HTMLButtonElement>();
 
+let latestPlannedBuildingCounts: Record<string, number> = {};
 let tooltipRefreshTimer: number | null = null;
+
+const groupOpenState = {
+  buildings: false,
+  research: false,
+  siege: false,
+};
+
+type MenuGroupKey = "buildings" | "research" | "siege";
+
+type MenuGroupRefs = {
+  root: HTMLDivElement;
+  toggle: HTMLButtonElement;
+  panel: HTMLDivElement;
+};
+
+const menuGroups = new Map<MenuGroupKey, MenuGroupRefs>();
 
 function stopTooltipRefresh() {
   if (tooltipRefreshTimer !== null) {
@@ -104,7 +121,7 @@ function stopTooltipRefresh() {
 function startTooltipRefresh(render: () => void) {
   stopTooltipRefresh();
   render();
-  tooltipRefreshTimer = window.setInterval(render, 200);
+  tooltipRefreshTimer = window.setInterval(render, 140);
 }
 
 function getTooltipCostStyle() {
@@ -120,94 +137,279 @@ function getTooltipCostStyle() {
   };
 }
 
+function getIconPath(itemType: string) {
+  return `/assets/${itemType.toLowerCase()}_icon.png`;
+}
+
+function getIconCandidates(itemType: string) {
+  const base = itemType.toLowerCase();
+  const aliases: Record<string, string[]> = {
+    barracks: ["brracks_icon", "brracks"],
+    hyperinflation: ["hiperinflation_icon", "hiperinflation"],
+  };
+
+  const names = [
+    `${base}_icon`,
+    base,
+    ...(aliases[base] ?? []),
+  ];
+
+  return Array.from(new Set(names)).map(name => `/assets/${name}.png`);
+}
+
+function createIconButton(iconType: string, title: string) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+
+  Object.assign(btn.style, {
+    width: "38px", // Reduced from 46px
+    height: "38px", // Reduced from 46px
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.25)",
+    background: "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.15), rgba(10,10,20,0.65))",
+    boxShadow: "0 3px 10px rgba(0,0,0,0.35)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0",
+    cursor: "pointer",
+    transition: "transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease, outline-color 120ms ease",
+  });
+
+  const iconCandidates = getIconCandidates(iconType);
+  let candidateIndex = 0;
+
+  const img = document.createElement("img");
+  img.src = iconCandidates[candidateIndex] ?? getIconPath(iconType);
+  img.alt = title;
+  img.draggable = false;
+
+  Object.assign(img.style, {
+    width: "28px", // Reduced from 34px
+    height: "28px", // Reduced from 34px
+    objectFit: "contain",
+    pointerEvents: "none",
+    userSelect: "none",
+  });
+
+  const fallbackText = document.createElement("span");
+  fallbackText.textContent = title.slice(0, 2).toUpperCase();
+  Object.assign(fallbackText.style, {
+    display: "none",
+    color: "#e2e8f0",
+    fontSize: "11px",
+    fontWeight: "700",
+    letterSpacing: "0.04em",
+    pointerEvents: "none",
+  });
+
+  img.onerror = () => {
+    candidateIndex += 1;
+    if (candidateIndex < iconCandidates.length) {
+      img.src = iconCandidates[candidateIndex];
+      return;
+    }
+
+    img.style.display = "none";
+    fallbackText.style.display = "block";
+  };
+
+  btn.appendChild(img);
+  btn.appendChild(fallbackText);
+  return btn;
+}
+
+function setPanelOpen(panel: HTMLDivElement, open: boolean) {
+  panel.style.maxWidth = open ? "540px" : "0px";
+  panel.style.opacity = open ? "1" : "0";
+  panel.style.transform = open ? "scaleX(1)" : "scaleX(0.82)";
+  panel.style.pointerEvents = open ? "auto" : "none";
+}
+
+function updateGroupToggleLabel(toggle: HTMLButtonElement, label: string, open: boolean) {
+  toggle.textContent = `${open ? "▾" : "▸"} ${label}`;
+}
+
+function positionTooltipAboveButton(tooltip: HTMLDivElement, btn: HTMLButtonElement) {
+  const btnRect = btn.getBoundingClientRect();
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const margin = 8;
+
+  const centeredLeft = btnRect.left + scrollX + btnRect.width / 2 - tooltip.offsetWidth / 2;
+  const minLeft = scrollX + margin;
+  const maxLeft = scrollX + window.innerWidth - tooltip.offsetWidth - margin;
+  const clampedLeft = Math.max(minLeft, Math.min(centeredLeft, maxLeft));
+
+  const aboveTop = btnRect.top + scrollY - tooltip.offsetHeight - 10;
+  const belowTop = btnRect.bottom + scrollY + 10;
+  const top = aboveTop < scrollY + margin ? belowTop : aboveTop;
+
+  tooltip.style.left = `${clampedLeft}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function createMenuGroup(key: MenuGroupKey, bottomPx: number, label: string) {
+  const themeByKey: Record<MenuGroupKey, { border: string; bg: string; pill: string }> = {
+    buildings: {
+      border: "rgba(96, 165, 250, 0.32)",
+      bg: "linear-gradient(135deg, rgba(10, 24, 48, 0.8), rgba(12, 16, 28, 0.78))",
+      pill: "rgba(30, 64, 175, 0.38)",
+    },
+    research: {
+      border: "rgba(216, 180, 254, 0.32)",
+      bg: "linear-gradient(135deg, rgba(40, 18, 68, 0.8), rgba(20, 12, 36, 0.78))",
+      pill: "rgba(126, 34, 206, 0.36)",
+    },
+    siege: {
+      border: "rgba(251, 146, 60, 0.32)",
+      bg: "linear-gradient(135deg, rgba(74, 30, 12, 0.8), rgba(28, 16, 12, 0.8))",
+      pill: "rgba(180, 83, 9, 0.38)",
+    },
+  };
+
+  const theme = themeByKey[key];
+
+  const root = document.createElement("div");
+  root.id = `${key}-group`;
+  Object.assign(root.style, {
+    position: "absolute",
+    left: "16px",
+    bottom: `${bottomPx}px`,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    zIndex: "12",
+    padding: "4px 8px", // Reduced padding from 8px 10px
+    borderRadius: "14px",
+    border: `1px solid ${theme.border}`,
+    background: theme.bg,
+    boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
+    backdropFilter: "blur(3px)",
+  });
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  Object.assign(toggle.style, {
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,0.28)",
+    background: theme.pill,
+    color: "#f8fafc",
+    fontSize: "12px",
+    fontWeight: "700",
+    letterSpacing: "0.02em",
+    padding: "5px 10px", // Reduced padding from 7px 11px
+    cursor: "pointer",
+    width: "105px",
+    textAlign: "left",
+    boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
+  });
+  updateGroupToggleLabel(toggle, label, groupOpenState[key]);
+
+  const panel = document.createElement("div");
+  panel.id = `${key}-ui`;
+  Object.assign(panel.style, {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    overflowX: "hidden",
+    overflowY: "visible",
+    padding: "2px 1px",
+    transformOrigin: "left center",
+    transition: "max-width 220ms ease, opacity 160ms ease, transform 220ms ease",
+  });
+  setPanelOpen(panel, groupOpenState[key]);
+
+  toggle.onclick = () => {
+    groupOpenState[key] = !groupOpenState[key];
+    setPanelOpen(panel, groupOpenState[key]);
+    updateGroupToggleLabel(toggle, label, groupOpenState[key]);
+  };
+
+  root.appendChild(toggle);
+  root.appendChild(panel);
+  document.body.appendChild(root);
+
+  menuGroups.set(key, { root, toggle, panel });
+  return panel;
+}
+
 export function initBuildButtons() {
-  // MAIN BUILDING CONTAINER (Bottom Row)
-  const container = document.createElement("div");
-  container.id = "build-ui";
-  container.style.position = "absolute";
-  container.style.bottom = "16px";
-  container.style.left = "16px";
-  container.style.display = "flex";
-  container.style.gap = "10px";
-  container.style.zIndex = "10";
-  document.body.appendChild(container);
-
-  // RESEARCH/ABILITY CONTAINER
-  const researchContainer = document.createElement("div");
-  researchContainer.id = "research-ui";
-  researchContainer.style.position = "absolute";
-  researchContainer.style.bottom = "60px";
-  researchContainer.style.left = "16px";
-  researchContainer.style.display = "flex";
-  researchContainer.style.gap = "10px";
-  researchContainer.style.zIndex = "10";
-  document.body.appendChild(researchContainer);
-
-  // SIEGE ATTACK CONTAINER
-  const siegeContainer = document.createElement("div");
-  siegeContainer.id = "siege-ui";
-  siegeContainer.style.position = "absolute";
-  siegeContainer.style.bottom = "104px";
-  siegeContainer.style.left = "16px";
-  siegeContainer.style.display = "flex";
-  siegeContainer.style.gap = "10px";
-  siegeContainer.style.zIndex = "10";
-  document.body.appendChild(siegeContainer);
+  // Spaced at 16px, 72px, and 128px (56px interval with 46px menu height leaving a clean 10px gap)
+  const container = createMenuGroup("buildings", 16, "Build");
+  const researchContainer = createMenuGroup("research", 72, "Research");
+  const siegeContainer = createMenuGroup("siege", 128, "Attacks");
 
   // TOOLTIP STRUCTURE
   const tooltip = document.createElement("div");
   tooltip.id = "build-tooltip";
   Object.assign(tooltip.style, {
     position: "absolute",
-    bottom: "108px", 
-    left: "16px",
+    top: "0px",
+    left: "0px",
     background: "rgba(10, 15, 30, 0.95)",
     color: "white",
-    padding: "8px 12px",
-    borderRadius: "6px",
+    padding: "10px 12px",
+    borderRadius: "8px",
     fontSize: "12px",
-    maxWidth: "220px",
+    lineHeight: "1.35",
+    maxWidth: "260px",
     pointerEvents: "none",
     display: "none",
     zIndex: "100",
-    border: "1px solid rgba(147, 51, 234, 0.3)"
+    border: "1px solid rgba(147, 51, 234, 0.3)",
+    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.45)",
   });
   document.body.appendChild(tooltip);
 
-  // --- GENERATE CONVENTIONAL BUILD BUTTONS ---
+  // --- GENERATE BUILD BUTTONS ---
   for (const d of defs) {
-    const btn = document.createElement("button");
-    btn.textContent = `[${d.key}] ${d.label} (${d.cost})`;
-    btn.style.padding = "8px 10px";
-    btn.style.borderRadius = "8px";
-    btn.style.border = "1px solid rgba(255,255,255,0.2)";
-    btn.style.background = "rgba(0,0,0,0.55)";
-    btn.style.color = "white";
-    btn.style.cursor = "pointer";
+    const btn = createIconButton(d.type, d.label);
 
     btn.onclick = () => toggleBuildMode(d.type);
 
+    btn.onmousedown = () => {
+      btn.style.transform = "translateY(1px) scale(0.98)";
+    };
+    btn.onmouseup = () => {
+      btn.style.transform = "translateY(0px) scale(1)";
+    };
+
     btn.onmouseenter = () => {
+      tooltip.style.display = "block";
+      tooltip.style.visibility = "hidden";
       startTooltipRefresh(() => {
         const { mePlayer, color } = getTooltipCostStyle();
         const effectiveCost = getEffectiveGoldCost(mePlayer, d.cost);
+        const state = clientNetState.state;
+        const me = clientNetState.playerId;
+        const meBuildings = state && me ? state.players.get(me)?.buildings : null;
+        const currentCount = meBuildings
+          ? (meBuildings[d.type.toLowerCase() as keyof typeof meBuildings] ?? 0)
+          : 0;
+        const plannedCount = latestPlannedBuildingCounts[d.type.toLowerCase()] ?? currentCount;
 
         tooltip.innerHTML = `
-          <div style="font-weight: bold; color: #facc15; margin-bottom: 4px;">${d.label}</div>
-          <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 4px;">${d.description}</div>
-          <div style="font-size: 11px;">
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 4px;">${d.label}</div>
+          <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">Key: ${d.key}</div>
+          <div style="font-size: 11px; margin-bottom: 4px;">
             <span style="color: ${color}; font-weight: 600;">Cost: ${effectiveCost} gold</span>
-            <span style="opacity: 0.7; color: #cbd5e1;"> | Refund: ${d.cost * DEMOLISH_REFUND_RATIO}g</span>
           </div>
+          <div style="font-size: 11px; color: #a5b4fc; margin-bottom: 6px;">Limit: ${plannedCount}/${d.limit}</div>
+          <div style="opacity: 0.92; margin-bottom: 6px;">${d.description}</div>
+          <div style="font-size: 10px; color: #94a3b8;">Demolish refund: ${d.cost * DEMOLISH_REFUND_RATIO}g</div>
         `;
+        positionTooltipAboveButton(tooltip, btn);
+        tooltip.style.visibility = "visible";
       });
-      tooltip.style.display = "block";
-      tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
     };
 
     btn.onmouseleave = () => {
       stopTooltipRefresh();
       tooltip.style.display = "none";
+      btn.style.transform = "translateY(0px) scale(1)";
     };
 
     container.appendChild(btn);
@@ -215,23 +417,24 @@ export function initBuildButtons() {
   }
 
   // --- GENERATE LABORATORY UPGRADE BUTTONS ---
-for (const r of researchDefs) {
-    const btn = document.createElement("button");
-    btn.textContent = `[${r.key}] ${r.label} (${r.cost})`;
-    btn.style.padding = "6px 12px";
-    btn.style.borderRadius = "8px";
-    btn.style.border = "1px solid rgba(168, 85, 247, 0.4)";
-    btn.style.background = "rgba(88, 28, 135, 0.4)";
-    btn.style.color = "#e9d5ff";
-    btn.style.fontWeight = "600";
-    btn.style.fontSize = "13px";
+  for (const r of researchDefs) {
+    const btn = createIconButton(r.type, r.label);
 
     btn.onclick = () => {
       if (btn.disabled) return;
       toggleAbilityMode(r.type);
     };
 
+    btn.onmousedown = () => {
+      btn.style.transform = "translateY(1px) scale(0.98)";
+    };
+    btn.onmouseup = () => {
+      btn.style.transform = "translateY(0px) scale(1)";
+    };
+
     btn.onmouseenter = () => {
+      tooltip.style.display = "block";
+      tooltip.style.visibility = "hidden";
       startTooltipRefresh(() => {
         const durationMs = EFFECT_DURATIONS[r.type] ?? 0;
         const durationText = durationMs > 0 ? `${durationMs / 1000}s` : "Permanent";
@@ -239,21 +442,23 @@ for (const r of researchDefs) {
         const effectiveCost = getEffectiveGoldCost(mePlayer, r.cost);
 
         tooltip.innerHTML = `
-          <div style="font-weight: bold; color: #c084fc; margin-bottom: 4px;">🧪 RESEARCH: ${r.label}</div>
-          <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${r.description}</div>
-          <div style="display: flex; gap: 12px; font-size: 11px;">
+          <div style="font-weight: 700; color: #c084fc; margin-bottom: 4px;">${r.label}</div>
+          <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">Key: ${r.key}</div>
+          <div style="display: flex; gap: 12px; font-size: 11px; margin-bottom: 6px;">
             <div style="color: ${color}; font-weight: 600;">Cost: ${effectiveCost} gold</div>
             <div style="color: #a7f3d0; font-weight: 500;">Duration: ${durationText}</div>
           </div>
+          <div style="opacity: 0.92;">${r.description}</div>
         `;
+        positionTooltipAboveButton(tooltip, btn);
+        tooltip.style.visibility = "visible";
       });
-      tooltip.style.display = "block";
-      tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
     };
 
     btn.onmouseleave = () => {
       stopTooltipRefresh();
       tooltip.style.display = "none";
+      btn.style.transform = "translateY(0px) scale(1)";
     };
 
     researchContainer.appendChild(btn);
@@ -262,42 +467,45 @@ for (const r of researchDefs) {
 
   // --- GENERATE SIEGE SPECIAL ATTACK BUTTONS ---
   for (const s of siegeAttackDefs) {
-    const btn = document.createElement("button");
-    btn.textContent = `[${s.key}] ${s.label}`;
-    btn.style.padding = "6px 12px";
-    btn.style.borderRadius = "8px";
-    btn.style.border = "1px solid rgba(234, 88, 12, 0.45)";
-    btn.style.background = "rgba(124, 45, 18, 0.45)";
-    btn.style.color = "#fdba74";
-    btn.style.fontWeight = "600";
-    btn.style.fontSize = "13px";
+    const btn = createIconButton(s.type, s.label);
 
     btn.onclick = () => {
       if (btn.disabled) return;
       toggleSiegeAttackMode(s.type);
     };
 
+    btn.onmousedown = () => {
+      btn.style.transform = "translateY(1px) scale(0.98)";
+    };
+    btn.onmouseup = () => {
+      btn.style.transform = "translateY(0px) scale(1)";
+    };
+
     btn.onmouseenter = () => {
+      tooltip.style.display = "block";
+      tooltip.style.visibility = "hidden";
       startTooltipRefresh(() => {
         const { mePlayer, color } = getTooltipCostStyle();
         const effectiveCost = getEffectiveGoldCost(mePlayer, s.cost);
 
         tooltip.innerHTML = `
-          <div style="font-weight: bold; color: #fb923c; margin-bottom: 4px;">SIEGE ATTACK: ${s.label}</div>
-          <div style="opacity: 0.9; line-height: 1.4; margin-bottom: 6px;">${s.description}</div>
-          <div style="display: flex; gap: 12px; font-size: 11px;">
+          <div style="font-weight: 700; color: #fb923c; margin-bottom: 4px;">${s.label}</div>
+          <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">Key: ${s.key}</div>
+          <div style="display: flex; gap: 12px; font-size: 11px; margin-bottom: 6px;">
             <div style="color: ${color}; font-weight: 600;">Cost: ${effectiveCost} gold</div>
             <div style="color: #fdba74; font-weight: 500;">Range: ${s.range} hex</div>
           </div>
+          <div style="opacity: 0.92;">${s.description}</div>
         `;
+        positionTooltipAboveButton(tooltip, btn);
+        tooltip.style.visibility = "visible";
       });
-      tooltip.style.display = "block";
-      tooltip.style.left = `${btn.getBoundingClientRect().left}px`;
     };
 
     btn.onmouseleave = () => {
       stopTooltipRefresh();
       tooltip.style.display = "none";
+      btn.style.transform = "translateY(0px) scale(1)";
     };
 
     siegeContainer.appendChild(btn);
@@ -306,19 +514,21 @@ for (const r of researchDefs) {
 }
 
 export function updateBuildButtons(state: CoreGameState | null, me: PlayerId | null, myPlannedBuildingCounts: Record<string, number>) {
-  const container = document.getElementById("build-ui");
-  const researchContainer = document.getElementById("research-ui");
-  const siegeContainer = document.getElementById("siege-ui");
-  if (!container || !researchContainer || !siegeContainer) return;
+  latestPlannedBuildingCounts = myPlannedBuildingCounts;
+
+  const buildGroup = menuGroups.get("buildings")?.root;
+  const researchGroup = menuGroups.get("research")?.root;
+  const siegeGroup = menuGroups.get("siege")?.root;
+  if (!buildGroup || !researchGroup || !siegeGroup) return;
 
   if (clientUIState.phase !== "PLAYING" || clientNetState.state?.players.get(me ?? "")?.eliminated) {
-    container.style.display = "none";
-    researchContainer.style.display = "none";
-    siegeContainer.style.display = "none";
+    buildGroup.style.display = "none";
+    researchGroup.style.display = "none";
+    siegeGroup.style.display = "none";
     return;
   }
 
-  container.style.display = "flex";
+  buildGroup.style.display = "flex";
 
   if (!state || !me) return;
   const p = state.players.get(me);
@@ -326,11 +536,11 @@ export function updateBuildButtons(state: CoreGameState | null, me: PlayerId | n
 
   const hasLaboratory = (p.buildings.laboratory ?? 0) > 0;
   const hasSiegeOutpost = (p.buildings.siege_outpost ?? 0) > 0;
-  researchContainer.style.display = hasLaboratory ? "flex" : "none";
-  siegeContainer.style.display = hasSiegeOutpost ? "flex" : "none";
+  researchGroup.style.display = hasLaboratory ? "flex" : "none";
+  siegeGroup.style.display = hasSiegeOutpost ? "flex" : "none";
 
   // --- UPDATE BUILD BUTTONS LOGIC ---
-for (const d of defs) {
+  for (const d of defs) {
     const btn = btnByType.get(d.type);
     if (!btn) continue;
 
@@ -339,9 +549,6 @@ for (const d of defs) {
     // FETCH CACHED COUNTS: Completed + Under Construction
     const plannedCount = myPlannedBuildingCounts[buildingKey] ?? 0;
     
-    // raw value only for text string rendering displays
-    const currentCount = p.buildings[buildingKey as keyof typeof p.buildings] ?? 0;
-
     const effectiveCost = getEffectiveGoldCost(p, d.cost);
     const affordable = p.gold >= effectiveCost;
     const selected = clientUIState.selectedBuilding === d.type;
@@ -350,14 +557,12 @@ for (const d of defs) {
     const disable = (!affordable || (plannedCount >= d.limit));
 
     btn.disabled = disable;
-    // UI text remains clean, showing your true active structures
-    btn.textContent = `[${d.key}] ` + d.label + ` (${currentCount}/${d.limit})`;
     btn.style.opacity = !disable ? "1" : "0.35";
     btn.style.cursor = !disable ? "pointer" : "not-allowed";
-    btn.style.outline = selected ? "2px solid rgba(107,124,255,0.9)" : "none";
+    btn.style.boxShadow = selected ? "inset 0 0 0 2px rgba(107,124,255,0.98), 0 3px 10px rgba(0,0,0,0.35)" : "0 3px 10px rgba(0,0,0,0.35)";
   }
 
-  // --- UPDATE LABORATORY ACTION BUTTONS TICK STATE ---
+  // --- UPDATE LABORATORY ACTION BUTTONS ---
   for (const r of researchDefs) {
     const btn = researchBtnByType.get(r.type);
     if (!btn) continue;
@@ -368,23 +573,15 @@ for (const d of defs) {
     const isSelected = clientUIState.selectedAbility === r.type;
 
     btn.disabled = isLockedOut;
-    
-    const activeBuff = p.effects?.find(e => e.type === r.type);
-    if (activeBuff && activeBuff.durationLeft !== null) {
-      btn.textContent = `ACTIVE (${Math.ceil(activeBuff.durationLeft / 1000)}s)`;
-      btn.style.background = r.isBuff ? "rgba(22, 163, 74, 0.5)" : "rgba(220, 38, 38, 0.5)"; 
-      btn.style.borderColor = r.isBuff ? "#22c55e" : "#ef4444";
-    } else {
-      btn.textContent = `[${r.key}] ${r.label}`;
-      btn.style.background = isLockedOut ? "rgba(30, 20, 40, 0.4)" : "rgba(88, 28, 135, 0.4)";
-      btn.style.borderColor = isLockedOut ? "rgba(255,255,255,0.1)" : "rgba(168, 85, 247, 0.6)";
-    }
+    btn.style.background = isLockedOut
+      ? "radial-gradient(circle at 30% 25%, rgba(120,120,120,0.08), rgba(20,18,30,0.5))"
+      : "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.16), rgba(40,15,70,0.72))";
+    btn.style.borderColor = isLockedOut ? "rgba(255,255,255,0.12)" : "rgba(192, 132, 252, 0.75)";
 
     btn.style.opacity = isLockedOut ? "0.4" : "1";
     btn.style.cursor = isLockedOut ? "not-allowed" : "pointer";
-    
-    // Highlights purple when ability selection mode is loaded onto the player's cursor
-    btn.style.outline = isSelected ? "2px solid rgba(168, 85, 247, 0.9)" : "none";
+
+    btn.style.boxShadow = isSelected ? "inset 0 0 0 2px rgba(192,132,252,0.98), 0 3px 10px rgba(0,0,0,0.35)" : "0 3px 10px rgba(0,0,0,0.35)";
   }
 
   for (const s of siegeAttackDefs) {
@@ -397,11 +594,12 @@ for (const d of defs) {
     const isSelected = clientUIState.selectedSpecialAttack === s.type;
 
     btn.disabled = isLockedOut;
-    btn.textContent = `[${s.key}] ${s.label} (${effectiveCost}G)`;
-    btn.style.background = isLockedOut ? "rgba(30, 20, 40, 0.4)" : "rgba(124, 45, 18, 0.45)";
-    btn.style.borderColor = isLockedOut ? "rgba(255,255,255,0.1)" : "rgba(234, 88, 12, 0.6)";
+    btn.style.background = isLockedOut
+      ? "radial-gradient(circle at 30% 25%, rgba(120,120,120,0.08), rgba(20,18,30,0.5))"
+      : "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.16), rgba(90,35,18,0.75))";
+    btn.style.borderColor = isLockedOut ? "rgba(255,255,255,0.12)" : "rgba(251, 146, 60, 0.72)";
     btn.style.opacity = isLockedOut ? "0.4" : "1";
     btn.style.cursor = isLockedOut ? "not-allowed" : "pointer";
-    btn.style.outline = isSelected ? "2px solid rgba(251, 146, 60, 0.95)" : "none";
+    btn.style.boxShadow = isSelected ? "inset 0 0 0 2px rgba(251,146,60,0.98), 0 3px 10px rgba(0,0,0,0.35)" : "0 3px 10px rgba(0,0,0,0.35)";
   }
 }

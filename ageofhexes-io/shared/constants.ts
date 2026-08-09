@@ -115,7 +115,7 @@ export const BUILDING_SIZE_MULTIPLIERS = new Map<BuildingType | "HQ" | SpecialBu
   ["HOUSE", 1],
   ["BARRACKS", 1],
   ["FORT", 1],
-  ["LABORATORY", 1],
+  ["LABORATORY", 1.2],
   ["SIEGE_OUTPOST", 1],
   ["HARBOR", 1],
   ["HQ", 1.2],

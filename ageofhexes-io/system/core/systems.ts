@@ -809,12 +809,6 @@ export function checkGameOver(state: CoreGameState) {
   let realPlayerInRoom = 0;
   let capturableTileCount = 0;
 
-  for (const tile of state.tiles.values()) {
-    if (tile.terrain !== "WATER" && tile.terrain !== "BEDROCK") {
-      capturableTileCount += 1;
-    }
-  }
-
   for (const p of state.players.values()) {
     if (!p.isBot) realPlayerInRoom++;
     if (p.status === "PLAYING" && !p.eliminated) {
@@ -829,7 +823,15 @@ export function checkGameOver(state: CoreGameState) {
       updatePlayerStat(lastAliveId, "placement", 1);
       updatePlayerStat(lastAliveId, "survivalTimeSeconds", Date.now());
     }
-  } else if (capturableTileCount > 0) {
+  } else if (realPlayerInRoom <= 0) {
+    state.gameOver = { winner: lastAliveId ? lastAliveId : "BOTS", reason: "ELIMINATION" };
+  } else {
+    for (const tile of state.tiles.values()) {
+      if (tile.terrain !== "WATER" && tile.terrain !== "BEDROCK") {
+        capturableTileCount += 1;
+      }
+    }
+    if (capturableTileCount > 0) {
     for (const p of state.players.values()) {
       if (p.status !== "PLAYING" || p.eliminated) continue;
       const territorySize = state.connectedCache?.get(p.id)?.size ?? 0;
@@ -841,8 +843,7 @@ export function checkGameOver(state: CoreGameState) {
         return;
       }
     }
-  } else if (realPlayerInRoom <= 0) {
-    state.gameOver = { winner: lastAliveId ? lastAliveId : "BOTS", reason: "ELIMINATION" };
+  }
   }
 }
 
@@ -998,10 +999,6 @@ export function applyEffectToPlayer(
     };
     player.effects.push(newEffect);
   }
-
-  if (sourcePlayerId) {
-    sendPlayerLog(sourcePlayerId, `Effect  \"${type}\" applied to player ${player.username}`, "#9b1289");
-  }
   return true;
 }
 
@@ -1131,7 +1128,10 @@ export function spreadPlagueFromSources(state: CoreGameState) {
   for (const sourceTile of state.tiles.values()) {
     if (sourceTile.specialBuilding !== "PLAGUE_SOURCE") continue;
     const targetTile = findNextPlagueSpreadTarget(state, sourceTile);
-    if (!targetTile) continue;
+    if (!targetTile) {
+      sourceTile.specialBuilding = null; // no more targets, remove plague source
+      continue;
+    }
 
     clearTileOwnership(state, targetTile, targetTile.ownerId);
     applyEffectToTile(state, targetTile.q, targetTile.r, "PLAGUED", null, targetTile.ownerId);
