@@ -87,9 +87,18 @@ Players can construct buildings to expand their capabilities. Each building has 
 ### Bombard (50G)
 Launch a heavy stone projectile onto the enemy tile destroying any buildings on it and disabling building on that tile permanently
 
+### Plague Bomb
+Launch a bomb of plague to spawn an infection source.
+* **Plague spreads every 6 seconds from the Plague Source outwards.**
+* **Plague targets only player owned tiles, converting them to neutral and destroying any buildings on the tile (exception: HQ).**
+* **Plagued tiles have increased defense (Plague Source has additional defense increase).**
+* **Plague can spread inside a 3 tile radius (has to be connected to source to spread).**
+* **Once there are no more valid tiles to spread to; Plague Source despawns.**
+
 ---
 
 ## 6. Win & Elimination Conditions
 
 * **Player Elimination:** A player is immediately eliminated from the match when an opponent captures the tile containing their **HQ**.
-* **Victory:** The last surviving player remaining in the match is declared the winner.
+
+* **Victory:** The last surviving player remaining in the match is declared the winner or if a player owns 70% of all captureable tiles he will win the match.

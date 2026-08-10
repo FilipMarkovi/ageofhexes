@@ -30,7 +30,6 @@ import { privateRoomCodes, createPrivateRoom } from "./util/rooms.js";
 import { getNextAvailablePlayerColor } from "./util/playerColors.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const PORT = 6767; // port
 const app = express();
@@ -157,7 +156,7 @@ export function updatePlayerStat(playerId: PlayerId, stat: TrackedStat, amount: 
   if (!stats) return;
   
   if (stat === "survivalTimeSeconds") {
-    stats.survivalTimeSeconds = Math.floor((amount - room.createdAt) / 1000);
+    stats.survivalTimeSeconds = Math.floor((amount - room.matchStartAt!) / 1000);
   } else if (stat === "placement") {
     stats.placement = amount;
   } else {
@@ -419,6 +418,7 @@ export function startMatchIfReady(room: GameRoom) {
   room.lastTickMs = Date.now();
 
   broadcastRoomState(room);
+  room.matchStartAt = Date.now();
 
   if (room.privateSettings) {
     return;
@@ -903,6 +903,7 @@ function startPrivateMatch(room: GameRoom) {
   room.state.waterNetwork = buildWaterNetwork(room.state);
   startHQPlacementCountdown(room.state, room.id);
   room.lastTickMs = Date.now();
+  room.matchStartAt = Date.now();
 
   broadcastRoomState(room);
 }

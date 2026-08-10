@@ -84,3 +84,6 @@ make the projectile spin while flying
 ---------------------------
 9.8.2026. - adjust plague source to disapear after there are no more targets, improved UI
 for building/ability/special attack buttons, added special building to tileinfo
+---------------------------
+10.8.2026. - centered buttons icons, faster special attack projectile speed, fix tracking
+seconds alive player stat correctly, better bombard projectile sprite

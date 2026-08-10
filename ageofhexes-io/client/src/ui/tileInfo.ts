@@ -1,4 +1,4 @@
-import type { CoreGameState, TileState } from "../../../shared/index.js";
+import type { CoreGameState, PlayerEffect, TileEffect, TileState } from "../../../shared/index.js";
 import { DEFEND_COST_RATIO, DEFENSE_HEAT_DECAY_MS, DEFENSE_COST_INCREMENT } from "../../../shared/constants.js";
 import { getServerNow } from "../utils/time.js";
 import { connectedByPlayer } from "../main.js";
@@ -169,7 +169,15 @@ export function drawTileInfo(
 
     // Render Player Bulletin Badges
     if (hasPlayerEffects) {
-      renderBulletinList(ctx, x + padding + 8, ty + 6, owner.effects, "#06b6d4", "rgba(6, 182, 212, 0.15)");
+      renderBulletinList(
+        ctx,
+        x + padding + 8,
+        ty + 6,
+        owner.effects,
+        "#06b6d4",
+        "rgba(6, 182, 212, 0.15)",
+        true
+      );
     }
   }
 
@@ -183,9 +191,10 @@ function renderBulletinList(
   ctx: CanvasRenderingContext2D,
   startX: number,
   startY: number,
-  effects: any[],
+  effects: (TileEffect | PlayerEffect)[],
   textColor: string,
-  bgColor: string
+  bgColor: string,
+  includeDuration = false
 ) {
   ctx.textAlign = "left";
   ctx.font = "bold 9px sans-serif";
@@ -193,11 +202,12 @@ function renderBulletinList(
   let currentX = startX;
 
   effects.forEach((effect) => {
-    const rawName = typeof effect === 'string' ? effect : (effect.type || effect.name || "UNKNOWN");
-    const name = rawName.toUpperCase().replace(/_/g, " ");
+    const name = effect.type.toUpperCase().replace(/_/g, " ");
+    const durationText = includeDuration ? formatEffectDuration(effect.durationLeft) : "";
+    const badgeText = durationText ? `${name} (${durationText})` : name;
     
     // Dynamic size sizing based on name text length
-    const textWidth = ctx.measureText(name).width;
+    const textWidth = ctx.measureText(badgeText).width;
     const badgeWidth = textWidth + 12;
     const badgeHeight = 16;
 
@@ -211,11 +221,17 @@ function renderBulletinList(
 
     // Draw Badge Text
     ctx.fillStyle = textColor;
-    ctx.fillText(name, currentX + 6, startY + 3);
+    ctx.fillText(badgeText, currentX + 6, startY + 3);
 
     // Shift left-to-right for next badge item
     currentX += badgeWidth + 6;
   });
+}
+
+function formatEffectDuration(durationLeft: number | null) {
+  if (durationLeft == null) return "PERM";
+  const seconds = Math.max(0, Math.ceil(durationLeft / 1000));
+  return `${seconds}s`;
 }
 
 // Helper: Terrain Colors

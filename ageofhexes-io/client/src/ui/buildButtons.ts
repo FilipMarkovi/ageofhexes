@@ -187,6 +187,9 @@ function createIconButton(iconType: string, title: string) {
   img.draggable = false;
 
   Object.assign(img.style, {
+    display: "block",
+    flexShrink: "0",
+    margin: "0 auto",
     width: "28px", // Reduced from 34px
     height: "28px", // Reduced from 34px
     objectFit: "contain",

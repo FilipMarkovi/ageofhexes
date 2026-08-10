@@ -17,7 +17,9 @@ export function initKeyboard() {
     if (e.key === "e") toggleAbilityMode("ATTACK_SPEED")
     if (e.key === "r") toggleAbilityMode("ARMY_GAIN_BUFF")
     if (e.key === "t") toggleAbilityMode("HYPERINFLATION")
+    
     if (e.key === "q") toggleSiegeAttackMode("BOMBARD")
+    if (e.key === "w") toggleSiegeAttackMode("PLAGUE_BOMB")
 
     if (e.key === "Escape") {
       clearBuildMode();

@@ -35,6 +35,7 @@ export type GameRoom = {
   playerIds: Set<PlayerId>;  
   lastTickMs: number;
   createdAt: number;
+  matchStartAt: number | null;  // timestamp when the match started
   closing: boolean;           // to avoid double-destroy
   mapId: string;
   maxPlayers: number;
@@ -113,6 +114,7 @@ export function createRoom(rooms: Map<RoomId, GameRoom>): GameRoom {
     playerIds: new Set(),
     lastTickMs: Date.now(),
     createdAt: Date.now(),
+    matchStartAt: null,
     closing: false,
     mapId,
     maxPlayers: map.playerCount,
@@ -169,6 +171,7 @@ export function createPrivateRoom(
     playerIds: new Set(),
     lastTickMs: Date.now(),
     createdAt: Date.now(),
+    matchStartAt: null,
     closing: false,
     mapId,
     maxPlayers: options?.maxPlayers ?? 4,

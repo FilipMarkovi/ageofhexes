@@ -14,6 +14,8 @@ import { BASE_CAPTURE_COST, FORT_DEFENSE_ADJACENT, FORT_DEFENSE_SELF,
   BUILDING_DEMOLISH_TIME, HARBOR_ATTACK_TIME_INCREASE, SPECIAL_ATTACK_COSTS, SPECIAL_ATTACK_RANGES,
   SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS, TERRITORY_WIN_PERCENT, PLAGUE_SPREAD_INTERVAL_MS, PLAGUE_DEFENSE_BONUS,
   PLAGUE_RADIUS, PLAGUE_SOURCE_DEFENSE_BONUS,
+  ARMY_TILE_CAP,
+  GOLD_TILE_CAP,
 } from "../../shared/constants.js";
 import type { CoreGameState } from "./state.js";
 import { handlePlaceHQ } from "./state.js";
@@ -710,7 +712,7 @@ export function tick(state: CoreGameState, dt: number) {
     {
       const goldGain = Math.min(
         BASE_GOLD_MAX,
-        p.gold + (owned * GOLD_PER_TILE + GOLD_PASSIVE) * dt * goldMult
+        p.gold + (Math.min(owned * GOLD_PER_TILE, GOLD_TILE_CAP) + GOLD_PASSIVE) * dt * goldMult
       ) - p.gold;
       if (goldGain !== 0) modifyPlayerResources(state, p, 'gold', goldGain);
     }
@@ -718,7 +720,7 @@ export function tick(state: CoreGameState, dt: number) {
     {
       const armyGain = Math.min(
         armyCap,
-        p.army + (ARMY_PASSIVE + barracks * BARRACKS_ARMY_BONUS + owned * ARMY_PER_TILE) * dt * armyMult * armyEffectMult
+        p.army + (ARMY_PASSIVE + barracks * BARRACKS_ARMY_BONUS + Math.min(owned * ARMY_PER_TILE, ARMY_TILE_CAP)) * dt * armyMult * armyEffectMult
       ) - p.army;
       if (armyGain !== 0) modifyPlayerResources(state, p, 'army', armyGain);
     }

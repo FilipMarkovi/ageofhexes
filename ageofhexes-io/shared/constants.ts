@@ -47,7 +47,7 @@ export const SPECIAL_ATTACK_RANGES = {
   PLAGUE_BOMB: 6,
 } as const;
 
-export const SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS = 300;
+export const SPECIAL_ATTACK_TRAVEL_TIME_PER_TILE_MS = 250;
 
 export const PLAGUE_SPREAD_INTERVAL_MS = 6_000;
 export const PLAGUE_RADIUS = 3;
@@ -128,8 +128,12 @@ export const ARMY_CAP_PER_TILE = 1;
 export const BASE_ARMY_MAX = 40;
 export const BASE_GOLD_MAX = 100 * GOLD_SCALE;
 
-export const GOLD_PER_TILE = 0.03 * GOLD_SCALE;
-export const ARMY_PER_TILE = 0.02;
+export const GOLD_PER_TILE = 0.02 * GOLD_SCALE; // max gain at 25 tiles
+export const ARMY_PER_TILE = 0.02; // max gain at 25 tiles
+
+export const GOLD_TILE_CAP = 0.5 * GOLD_SCALE; // Maximum bonus gold gain per second for # of tiles owned
+export const ARMY_TILE_CAP = 0.5; // Maximum bonus army gain per second for # of tiles owned
+
 export const GOLD_PASSIVE = 0.5 * GOLD_SCALE;
 export const ARMY_PASSIVE = 1;
 
