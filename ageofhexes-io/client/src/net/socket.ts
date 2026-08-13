@@ -45,7 +45,7 @@ export type SpecialAttackLaunchedMsg = {
 
 export type ServerMsg =
   | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
-  | { type: "LOBBY"; connected: number; required: number; roomId: string }
+  | { type: "LOBBY"; connected: number; required: number; roomId: string; matchStartAt: number | null; serverTime: number }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
   | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number }
   | { type: "LOG"; text: string; color?: string }
@@ -62,7 +62,7 @@ type ClientMsg =
 
 export function connect(url: string, handlers: {
   onWelcome: (playerId: string, requiredPlayers: number, roomId: string) => void;
-  onLobby: (connected: number, required: number, roomId: string) => void;
+  onLobby: (connected: number, required: number, roomId: string, matchStartAt: number | null) => void;
   onState: (state: any) => void;
   onLog: (text: string, color?: string) => void;
   onAuthSuccess?: (username?: string) => void;
@@ -83,7 +83,8 @@ export function connect(url: string, handlers: {
         handlers.onWelcome(msg.playerId, msg.requiredPlayers, msg.roomId);
         break;
       case "LOBBY":
-        handlers.onLobby(msg.connected, msg.required, msg.roomId);
+        clientNetState.serverClockOffset = msg.serverTime - Date.now();
+        handlers.onLobby(msg.connected, msg.required, msg.roomId, msg.matchStartAt);
         break;
       case "STATE": {
         if (msg.serverTime) {

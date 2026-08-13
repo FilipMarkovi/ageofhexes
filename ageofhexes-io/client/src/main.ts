@@ -5,6 +5,7 @@ import {
   drawHexEffectsBatch, 
   drawWaterAttackPaths,
   drawBuildingsBatch, 
+  drawPlayerEffectIconsBatch,
   drawCaptureHexBatch, 
   drawBuildingProgressBarsBatch 
 } from "./render/hexRender.js";
@@ -61,7 +62,7 @@ const wsUrl = `${protocol}//${backendHost}`;
 export const { sendIntent, tryAuth } = connect(wsUrl, {
   onWelcome: async (id, requiredPlayers, roomId) => {
     clientNetState.playerId = id;
-    clientNetState.lobby = { connected: 0, required: requiredPlayers, roomId };
+    clientNetState.lobby = { connected: 0, required: requiredPlayers, roomId, matchStartAt: null };
 
     const { data: { session } } = await supabase.auth.getSession();
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
@@ -72,8 +73,8 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
 
     scheduleLobbyUIUpdate();
   },
-  onLobby: (connected, required, roomId) => {
-    clientNetState.lobby = { connected, required, roomId };
+  onLobby: (connected, required, roomId, matchStartAt) => {
+    clientNetState.lobby = { connected, required, roomId, matchStartAt };
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
     scheduleLobbyUIUpdate();
   },
@@ -622,10 +623,14 @@ function loop() {
     drawHexBatch(ctx, visibleTiles, HEX_SIZE);
     drawHexEffectsBatch(ctx, visibleTiles, HEX_SIZE);
     drawBuildingsBatch(ctx, visibleTiles, HEX_SIZE);
+    
     drawBuildingProgressBarsBatch(ctx, visibleTiles, HEX_SIZE);
     drawCaptureHexBatch(ctx, visibleTiles, HEX_SIZE, deltaTime);
     drawWaterAttackPaths(ctx, state);
-    if (camera.zoom > 0.75) {drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);}
+    if (camera.zoom > 0.70) {
+      drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);
+      drawPlayerEffectIconsBatch(ctx, visibleTiles, HEX_SIZE, state);
+    }
     drawProjectiles(ctx);
 
     if (hoveredHex) {

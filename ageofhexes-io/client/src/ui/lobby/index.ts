@@ -11,6 +11,16 @@ import { setGuestName } from "./helpers.js";
 import { USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
 
 let notificationTimer: number | null = null;
+let lobbyCountdownIntervalId: number | null = null;
+
+function formatLobbyCountdown(targetServerTimeMs: number): string {
+  const serverNow = Date.now() + clientNetState.serverClockOffset;
+  const remainingMs = Math.max(0, targetServerTimeMs - serverNow);
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
 
 function createIntroLoadingScreen() {
   const loadingScreenRoot = document.createElement("div");
@@ -371,6 +381,17 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   setLobbyUIRefreshHandler(() => updateLobbyUI());
   refs.inputEl.maxLength = 15;
 
+  if (lobbyCountdownIntervalId !== null) {
+    window.clearInterval(lobbyCountdownIntervalId);
+  }
+  lobbyCountdownIntervalId = window.setInterval(() => {
+    const hasMatchStartTimer = clientNetState.lobby.matchStartAt !== null;
+    const inLobbyPhase = clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED";
+    if (hasMatchStartTimer && inLobbyPhase) {
+      scheduleLobbyUIUpdate();
+    }
+  }, 1000);
+
   initLobbyRouting({ sendIntent, hideError, showError });
 
   refs.lobbyTabBtn.onclick = () => handleTopTabNavigation("LOBBY", { sendIntent, hideError, showError });
@@ -559,10 +580,15 @@ export function updateLobbyUI() {
   if (!lobby) {
     refs.statusEl.textContent = "Connecting...";
   } else if (lobbyRuntime.currentPrivateView !== "IN_PRIVATE_LOBBY") {
+    const timerSuffix =
+      lobby.matchStartAt !== null
+        ? ` • Match starts in ${formatLobbyCountdown(lobby.matchStartAt)}`
+        : "";
+
     if (clientUIState.phase === "QUEUED") {
-      refs.statusEl.textContent = `Waiting for players: ${lobby.connected}/${lobby.required}`;
+      refs.statusEl.textContent = `Waiting for players: ${lobby.connected}/${lobby.required}${timerSuffix}`;
     } else {
-      refs.statusEl.textContent = `Lobby: ${lobby.connected}/${lobby.required}`;
+      refs.statusEl.textContent = `Lobby: ${lobby.connected}/${lobby.required}${timerSuffix}`;
       refs.inputEl.disabled = lobbyRuntime.isUserAuthenticated;
       refs.playBtn.disabled = false;
       refs.playBtn.style.opacity = "1";

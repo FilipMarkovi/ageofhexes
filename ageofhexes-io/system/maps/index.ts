@@ -1,6 +1,6 @@
 // shared/maps/index.ts
 import { GameMapDefinition } from "./types.js";
-import { barrier } from "./instances/barrier.js";
+import { star } from "./instances/star.js";
 import { oasis } from "./instances/oasis.js";
 import { thelakes } from "./instances/thelakes.js";
 import { greatriver } from "./instances/thegreatriver.js";
@@ -9,7 +9,7 @@ import { hexalandia } from "./instances/hexalandia.js";
 
 
 export const MAPS = new Map<string, GameMapDefinition>([
-  ["barrier", barrier],
+  ["star", star],
   ["oasis", oasis],
   ["thelakes", thelakes],
   ["greatriver", greatriver],

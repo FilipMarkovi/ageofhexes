@@ -41,7 +41,7 @@ export const MAX_INTENTS_PER_SECOND = 10;
 // AI
 export const PIVOT_DIST = 4;
 export const STEEPNESS = 1.6;
-export const TIME_TO_AI_AUTOFILL = 5_000;
+export const TIME_TO_AI_AUTOFILL = 8_000;
 export const DEFAULT_BOT_AGGRESSION = 40;
 
 export const GAMER_NAMES: string[] = [

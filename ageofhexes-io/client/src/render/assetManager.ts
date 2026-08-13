@@ -12,6 +12,11 @@ export const tileEffectImages: { brokenGround: HTMLImageElement | null; plagued:
   brokenGround: null,
   plagued: null,
 };
+export const playerEffectImages: Record<string, HTMLImageElement | null> = {
+  ATTACK_SPEED: null,
+  ARMY_GAIN_BUFF: null,
+  HYPERINFLATION: null,
+};
 
 const asset_folder = "../../../assets/";
 
@@ -47,11 +52,18 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     plagued: asset_folder + "plagued.png",
   };
 
+  const playerEffectSources = {
+    ATTACK_SPEED: asset_folder + "attack_speed_icon.png",
+    ARMY_GAIN_BUFF: asset_folder + "army_gain_buff_icon.png",
+    HYPERINFLATION: asset_folder + "hiperinflation_icon.png",
+  };
+
   const totalImages =
     Object.keys(tileSources).length +
     Object.keys(buildingSources).length +
     Object.keys(miscSources).length +
-    Object.keys(tileEffectSources).length;
+    Object.keys(tileEffectSources).length +
+    Object.keys(playerEffectSources).length;
   let loadedCount = 0;
 
   function checkLoad() {
@@ -112,6 +124,20 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     img.onload = () => {
       if (type === "brokenGround") tileEffectImages.brokenGround = img;
       if (type === "plagued") tileEffectImages.plagued = img;
+      checkLoad();
+    };
+
+    img.onerror = () => {
+      checkLoad();
+    };
+  });
+
+  // Load Player Effect Sprites
+  Object.entries(playerEffectSources).forEach(([type, src]) => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      playerEffectImages[type] = img;
       checkLoad();
     };
 

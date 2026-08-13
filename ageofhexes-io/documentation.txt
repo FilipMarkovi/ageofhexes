@@ -87,3 +87,5 @@ for building/ability/special attack buttons, added special building to tileinfo
 ---------------------------
 10.8.2026. - centered buttons icons, faster special attack projectile speed, fix tracking
 seconds alive player stat correctly, better bombard projectile sprite
+---------------------------
+13.8.2026 - added timer until match start in lobby, added visual when player has active player effect

@@ -12,7 +12,7 @@ export const clientUIState = {
 export const clientNetState = {
   playerId: null as string | null,
   state: null as CoreGameState | null,
-  lobby: { connected: 0, required: 0, roomId: null as string | null },
+  lobby: { connected: 0, required: 0, roomId: null as string | null, matchStartAt: null as number | null },
   roomId: null as string | null,
   privateRoomCode: null as string | null,
   serverClockOffset: 0,

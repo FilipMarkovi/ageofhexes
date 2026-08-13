@@ -19,7 +19,7 @@ import { STARTING_GOLD, STARTING_ARMY, TICK_RATE } from "../../shared/constants.
 import { initMap } from "./init/initMap.js";
 import { RoomId, GameRoom, createRoom  } from "./util/rooms.js";
 import { runBots } from "./ai/botManager.js";
-import { handleQueueBots, fillRoomWithBots, cancelQueueBots } from "./ai/queueBotManager.js";
+import { handleQueueBots, fillRoomWithBots, cancelQueueBots, getQueueAutofillDeadline } from "./ai/queueBotManager.js";
 import { PlayerId } from "../../shared/index.js";
 import express from "express";
 import fs from "node:fs";
@@ -46,7 +46,7 @@ type ClientMsg =
 
 export type ServerMsg =
   | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
-  | { type: "LOBBY"; connected: number; required: number; roomId: string }
+  | { type: "LOBBY"; connected: number; required: number; roomId: string; matchStartAt: number | null; serverTime: number }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
   | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number }
   | {
@@ -104,6 +104,7 @@ const rooms = new Map<RoomId, GameRoom>();
 let queueRoomId: RoomId;
 const playerRoom = new Map<PlayerId, RoomId>(); // player -> room
 const sockets = new Map<PlayerId, WebSocket>();
+const socketLifetime = new Map<PlayerId, number>(); // player -> time when websocket was created
 const intentHistory = new Map<PlayerId, number[]>();
 
 const wss = new WebSocketServer({
@@ -199,14 +200,23 @@ function queuedCount(room: GameRoom) {
   return [...room.state.players.values()].filter(p => p.status === "QUEUED").length;
 }
 
+function buildLobbyMessage(room: GameRoom) {
+  const connected = queuedCount(room);
+  const matchStartAt = connected > 0 ? getQueueAutofillDeadline(room.id) : null;
+
+  return {
+    type: "LOBBY",
+    connected,
+    required: room.maxPlayers,
+    roomId: room.id,
+    matchStartAt,
+    serverTime: Date.now(),
+  } satisfies ServerMsg;
+}
+
 export function broadcastLobby(pid: PlayerId | null = null) {
   const room = getQueueRoom();
-  const msg = JSON.stringify({
-    type: "LOBBY",
-    connected: queuedCount(room),
-    required: room.maxPlayers,
-    roomId: room.id
-  });
+  const msg = JSON.stringify(buildLobbyMessage(room));
 
   // If a specific player ID is provided, send only to that player; otherwise, broadcast to all connected sockets
   if (pid && sockets.has(pid)) {
@@ -257,8 +267,8 @@ function handleJoinQueue(playerId: PlayerId, username: string) {
     placement: 0
   });
 
-  broadcastLobby();
   handleQueueBots(room, playerRoom);
+  broadcastLobby();
   startMatchIfReady(room);
 }
 
@@ -488,14 +498,11 @@ setInterval(() => {
 wss.on("connection", (ws, req) => {
   const playerId = crypto.randomUUID();
   sockets.set(playerId, ws);
+  socketLifetime.set(playerId, Date.now());
+  console.log(`[CONNECT] Player ${playerId} connected. Total active players: ${sockets.size}`);
   const room = getQueueRoom()
   ws.send(JSON.stringify({ type: "WELCOME", playerId, requiredPlayers: room.maxPlayers, roomId: room.id } satisfies ServerMsg));
-  ws.send(JSON.stringify({
-    type: "LOBBY",
-    connected: queuedCount(getQueueRoom()),
-    required: room.maxPlayers,
-    roomId: room.id
-  }));
+  ws.send(JSON.stringify(buildLobbyMessage(room)));
 
   ws.on("message", async (buf) => {
     const now = Date.now();
@@ -746,6 +753,8 @@ wss.on("connection", (ws, req) => {
   });
 
   ws.on("close", () => {
+    console.log(`[DISCONNECT] Player ${playerId} disconnected. Active time: ${(Date.now() - (socketLifetime.get(playerId) || Date.now())) / 1000}s`);
+    socketLifetime.delete(playerId);
     sockets.delete(playerId);
     intentHistory.delete(playerId);
     authSessions.delete(playerId);

@@ -13,6 +13,11 @@ import { start } from "node:repl";
 import { getNextAvailablePlayerColor } from "../util/playerColors.js";
 
 const queueTimers = new Map<string, NodeJS.Timeout>();
+const queueAutofillDeadlines = new Map<string, number>();
+
+export function getQueueAutofillDeadline(roomId: string): number | null {
+  return queueAutofillDeadlines.get(roomId) ?? null;
+}
 
 export function cancelQueueBots(roomId: string) {
   const timer = queueTimers.get(roomId);
@@ -20,6 +25,7 @@ export function cancelQueueBots(roomId: string) {
 
   clearTimeout(timer);
   queueTimers.delete(roomId);
+  queueAutofillDeadlines.delete(roomId);
 }
 
 export function handleQueueBots(
@@ -37,9 +43,11 @@ export function handleQueueBots(
     const timer = setTimeout(() => {
       fillRoomWithBots(room, playerRoom);
       queueTimers.delete(room.id);
+      queueAutofillDeadlines.delete(room.id);
     }, TIME_TO_AI_AUTOFILL);
 
     queueTimers.set(room.id, timer);
+    queueAutofillDeadlines.set(room.id, Date.now() + TIME_TO_AI_AUTOFILL);
   }
 }
 

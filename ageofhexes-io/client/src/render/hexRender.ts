@@ -1,11 +1,11 @@
-import type { TileState, PlayerId, BuildingType, SpecialBuildingType } from "../../../shared/index.js";
+import type { TileState, PlayerId, BuildingType, SpecialBuildingType, CoreGameState } from "../../../shared/index.js";
 import { canCaptureClient } from "../utils/canCapture.js";
 import { camera } from "./camera.js";
 import { getStripePattern } from "./patterns.js";
 import { FILL_ALPHA, BUILDING_SIZE_MULTIPLIERS, HEX_SIZE, HARBOR_ATTACK_TIME_INCREASE } from "../../../shared/constants.js";
 import { darken } from "./playerColors.js";
 import { DEFENSE_HEAT_DECAY_MS, BUILDING_CONSTRUCTION_TIME, BUILDING_DEMOLISH_TIME } from "../../../shared/constants.js";
-import { tileTextures, buildingImages, shipImage, tileEffectImages } from "./assetManager.js";
+import { tileTextures, buildingImages, shipImage, tileEffectImages, playerEffectImages } from "./assetManager.js";
 import { getServerNow } from "../utils/time.js";
 
 /**
@@ -408,6 +408,49 @@ export function drawBuildingsBatch(
     ctx.restore();
   }
   ctx.restore();
+}
+
+const HQ_EFFECT_ICON_ORDER = ["ATTACK_SPEED", "ARMY_GAIN_BUFF", "HYPERINFLATION"] as const;
+
+export function drawPlayerEffectIconsBatch(
+  ctx: CanvasRenderingContext2D,
+  items: any[],
+  size: number,
+  state: CoreGameState
+) {
+  const s = size * camera.zoom * 0.35;
+  const iconSize = Math.max(12, s * 0.9);
+  const iconSpacing = Math.max(2, iconSize * 0.2);
+  const offsetY = s * -1.2;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const { x, y, tile } = item;
+    if (tile.building !== "HQ" || !tile.ownerId) continue;
+
+    const owner = state.players.get(tile.ownerId);
+    if (!owner || !owner.effects || owner.effects.length === 0) continue;
+
+    const activeTypes = new Set(owner.effects.map((effect) => effect.type));
+    const renderTypes = HQ_EFFECT_ICON_ORDER.filter((effectType) => activeTypes.has(effectType));
+    if (renderTypes.length === 0) continue;
+
+    const totalWidth = renderTypes.length * iconSize + (renderTypes.length - 1) * iconSpacing;
+    let iconX = x - totalWidth / 2;
+    const iconY = y - offsetY;
+
+    for (let j = 0; j < renderTypes.length; j++) {
+      const effectType = renderTypes[j];
+      const img = playerEffectImages[effectType];
+      if (!img || !img.complete || img.naturalWidth === 0) {
+        iconX += iconSize + iconSpacing;
+        continue;
+      }
+
+      ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
+      iconX += iconSize + iconSpacing;
+    }
+  }
 }
 
 /**
