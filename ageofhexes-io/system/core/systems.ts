@@ -1001,6 +1001,12 @@ export function applyEffectToPlayer(
     };
     player.effects.push(newEffect);
   }
+  const sourcePlayer = state.players.get(sourcePlayerId ?? '');
+  if (sourcePlayer && playerId !== sourcePlayerId)
+    sendPlayerLog(playerId, `Gained effect: ${type}, by player: ${sourcePlayer.username}`, "#a41ab6");
+  else {
+    sendPlayerLog(playerId, `Gained effect: ${type}`, "#a41ab6");
+  }
   return true;
 }
 

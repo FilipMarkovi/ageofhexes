@@ -72,7 +72,7 @@ export const TILES_UNTIL_MAX_ATTACKTIME_INCREASE = 50;
 export const MAX_ATTACKTIME_INCREASE = 1;
 
 // Economy
-export const STARTING_GOLD = 100 * GOLD_SCALE;
+export const STARTING_GOLD = 15 * GOLD_SCALE;
 export const STARTING_ARMY = 15;
 
 export const BUILDING_COST = {

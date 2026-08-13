@@ -627,7 +627,7 @@ function loop() {
     drawBuildingProgressBarsBatch(ctx, visibleTiles, HEX_SIZE);
     drawCaptureHexBatch(ctx, visibleTiles, HEX_SIZE, deltaTime);
     drawWaterAttackPaths(ctx, state);
-    if (camera.zoom > 0.70) {
+    if (camera.zoom > 0.80) {
       drawHexTextBatch(ctx, visibleTiles, HEX_SIZE);
       drawPlayerEffectIconsBatch(ctx, visibleTiles, HEX_SIZE, state);
     }

@@ -27,5 +27,5 @@ export const star = asciiToGameMap(
      . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
   `,
   "The Star",
-  12
+  8
 );
