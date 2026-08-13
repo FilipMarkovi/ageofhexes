@@ -22,6 +22,10 @@ function formatLobbyCountdown(targetServerTimeMs: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function getValidMatchStartAt(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function createIntroLoadingScreen() {
   const loadingScreenRoot = document.createElement("div");
   loadingScreenRoot.style.position = "absolute";
@@ -385,7 +389,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     window.clearInterval(lobbyCountdownIntervalId);
   }
   lobbyCountdownIntervalId = window.setInterval(() => {
-    const hasMatchStartTimer = clientNetState.lobby.matchStartAt !== null;
+    const hasMatchStartTimer = getValidMatchStartAt(clientNetState.lobby.matchStartAt) !== null;
     const inLobbyPhase = clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED";
     if (hasMatchStartTimer && inLobbyPhase) {
       scheduleLobbyUIUpdate();
@@ -580,9 +584,10 @@ export function updateLobbyUI() {
   if (!lobby) {
     refs.statusEl.textContent = "Connecting...";
   } else if (lobbyRuntime.currentPrivateView !== "IN_PRIVATE_LOBBY") {
+    const matchStartAt = getValidMatchStartAt(lobby.matchStartAt);
     const timerSuffix =
-      lobby.matchStartAt !== null
-        ? ` • Match starts in ${formatLobbyCountdown(lobby.matchStartAt)}`
+      matchStartAt !== null
+        ? ` • Match starts in ${formatLobbyCountdown(matchStartAt)}`
         : "";
 
     if (clientUIState.phase === "QUEUED") {

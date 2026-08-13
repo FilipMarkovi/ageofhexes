@@ -84,7 +84,14 @@ export function connect(url: string, handlers: {
         break;
       case "LOBBY":
         clientNetState.serverClockOffset = msg.serverTime - Date.now();
-        handlers.onLobby(msg.connected, msg.required, msg.roomId, msg.matchStartAt);
+        handlers.onLobby(
+          msg.connected,
+          msg.required,
+          msg.roomId,
+          typeof msg.matchStartAt === "number" && Number.isFinite(msg.matchStartAt)
+            ? msg.matchStartAt
+            : null
+        );
         break;
       case "STATE": {
         if (msg.serverTime) {
