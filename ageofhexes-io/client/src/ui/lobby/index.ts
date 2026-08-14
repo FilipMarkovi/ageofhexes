@@ -20,12 +20,10 @@ function formatLobbyCountdown(targetServerTimeMs: number): string {
   const totalSeconds = Math.ceil(remainingMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  console.log(`${minutes}:${seconds.toString().padStart(2, "0")} ----- ${targetServerTimeMs}`)
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function getValidMatchStartAt(value: number | null | undefined): number | null {
-  console.log("getValidMatchStartAt called with value:", value);
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 

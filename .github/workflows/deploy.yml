@@ -17,6 +17,6 @@ jobs:
           script: |
             cd ageofhexes/ageofhexes-io
             git pull origin main
-            npm install
+            npm ci
             npm run build
             pm2 restart all
