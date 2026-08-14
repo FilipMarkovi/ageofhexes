@@ -60,23 +60,6 @@ type ClientMsg =
   | { type: "INTENT"; intent: any }
   | { type: "AUTH"; token: string };
 
-function parseFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function parseOptionalTimestamp(value: unknown): number | null {
-  return parseFiniteNumber(value);
-}
-
 export function connect(url: string, handlers: {
   onWelcome: (playerId: string, requiredPlayers: number, roomId: string) => void;
   onLobby: (connected: number, required: number, roomId: string, matchStartAt: number | null) => void;
@@ -100,15 +83,14 @@ export function connect(url: string, handlers: {
         handlers.onWelcome(msg.playerId, msg.requiredPlayers, msg.roomId);
         break;
       case "LOBBY":
-        const serverTimeMs = parseFiniteNumber((msg as { serverTime?: unknown }).serverTime);
-        if (serverTimeMs !== null) {
-          clientNetState.serverClockOffset = serverTimeMs - Date.now();
-        }
+        clientNetState.serverClockOffset = msg.serverTime - Date.now();
         handlers.onLobby(
           msg.connected,
           msg.required,
           msg.roomId,
-          parseOptionalTimestamp((msg as { matchStartAt?: unknown }).matchStartAt)
+          typeof msg.matchStartAt === "number" && Number.isFinite(msg.matchStartAt)
+            ? msg.matchStartAt
+            : null
         );
         break;
       case "STATE": {

@@ -9,20 +9,23 @@ import { handleRouteChange, handleTopTabNavigation, initLobbyRouting, maybeJoinP
 import type { LeaderboardCategory, PrivateLobbyUpdateMessage } from "./types.js";
 import { setGuestName } from "./helpers.js";
 import { USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
+import { getServerNow } from "../../utils/time.js";
 
 let notificationTimer: number | null = null;
 let lobbyCountdownIntervalId: number | null = null;
 
 function formatLobbyCountdown(targetServerTimeMs: number): string {
-  const serverNow = Date.now() + clientNetState.serverClockOffset;
+  const serverNow = getServerNow();
   const remainingMs = Math.max(0, targetServerTimeMs - serverNow);
   const totalSeconds = Math.ceil(remainingMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
+  console.log(`${minutes}:${seconds.toString().padStart(2, "0")} ----- ${targetServerTimeMs}`)
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function getValidMatchStartAt(value: number | null | undefined): number | null {
+  console.log("getValidMatchStartAt called with value:", value);
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
