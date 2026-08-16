@@ -505,21 +505,29 @@ wss.on("connection", (ws, req) => {
   ws.send(JSON.stringify(buildLobbyMessage(room)));
 
   ws.on("message", async (buf) => {
-    const now = Date.now();
-    let history = intentHistory.get(playerId) || [];
-      // Filter out timestamps older than 1 second
-    history = history.filter(time => now - time < 1000);
-    
-    if (history.length >= MAX_INTENTS_PER_SECOND) {
-      // ws.send(JSON.stringify({ type: "ERROR", msg: "Too many actions!" }));
-      return; 
-    }
-    history.push(now);
-    intentHistory.set(playerId, history);
-
     let msg: ClientMsg | null = null;
     try { msg = JSON.parse(buf.toString()); } catch { console.log("error while json parsing");return; }
     if (!msg) return;
+
+    const isReturnToLobbyIntent =
+      msg.type === "INTENT" &&
+      !!msg.intent &&
+      typeof msg.intent === "object" &&
+      msg.intent.type === "RETURN_LOBBY";
+
+    if (!isReturnToLobbyIntent) {
+      const now = Date.now();
+      let history = intentHistory.get(playerId) || [];
+      // Filter out timestamps older than 1 second
+      history = history.filter(time => now - time < 1000);
+
+      if (history.length >= MAX_INTENTS_PER_SECOND) {
+        // ws.send(JSON.stringify({ type: "ERROR", msg: "Too many actions!" }));
+        return;
+      }
+      history.push(now);
+      intentHistory.set(playerId, history);
+    }
 
     // GOOGLE AUTH PROCESSING
     if (msg.type === "AUTH") {

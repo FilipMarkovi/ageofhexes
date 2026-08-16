@@ -75,6 +75,11 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
   },
   onLobby: (connected, required, roomId, matchStartAt) => {
     clientNetState.lobby = { connected, required, roomId, matchStartAt };
+    if (clientNetState.isReturningToLobby) {
+      clientNetState.isReturningToLobby = false;
+      clientNetState.state = null;
+      clientUIState.phase = "LOBBY";
+    }
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
     scheduleLobbyUIUpdate();
   },
@@ -133,6 +138,10 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
     });
   },
   onState: (state) => {
+    if (clientNetState.isReturningToLobby) {
+      return;
+    }
+
     clientNetState.state = state;
 
     const waterNetwork = buildWaterNetwork(state);
@@ -172,6 +181,7 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
     if (state.gameOver) {
       clientUIState.phase = "GAME_OVER";
       handleLobbyRouteState(sendIntent);
+      scheduleLobbyUIUpdate();
       return;
     }
 

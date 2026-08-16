@@ -128,11 +128,11 @@ export const ARMY_CAP_PER_TILE = 1;
 export const BASE_ARMY_MAX = 40;
 export const BASE_GOLD_MAX = 100 * GOLD_SCALE;
 
-export const GOLD_PER_TILE = 0.02 * GOLD_SCALE; // max gain at 25 tiles
-export const ARMY_PER_TILE = 0.02; // max gain at 25 tiles
+export const GOLD_PER_TILE = 0.02 * GOLD_SCALE; // max gain at 50 tiles
+export const ARMY_PER_TILE = 0.02; // max gain at 50 tiles
 
-export const GOLD_TILE_CAP = 0.5 * GOLD_SCALE; // Maximum bonus gold gain per second for # of tiles owned
-export const ARMY_TILE_CAP = 0.5; // Maximum bonus army gain per second for # of tiles owned
+export const GOLD_TILE_CAP = 1 * GOLD_SCALE; // Maximum bonus gold gain per second for # of tiles owned
+export const ARMY_TILE_CAP = 1; // Maximum bonus army gain per second for # of tiles owned
 
 export const GOLD_PASSIVE = 0.5 * GOLD_SCALE;
 export const ARMY_PASSIVE = 1;

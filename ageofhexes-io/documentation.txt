@@ -89,3 +89,6 @@ for building/ability/special attack buttons, added special building to tileinfo
 seconds alive player stat correctly, better bombard projectile sprite
 ---------------------------
 13.8.2026 - added timer until match start in lobby, added visual when player has active player effect
+---------------------------
+16.8.2026. - fixed delayed game over message, fixed bug where if pressed return to lobby when game
+is not over player had to press it twice to actually return to lobby

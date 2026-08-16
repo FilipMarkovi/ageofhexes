@@ -537,6 +537,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   });
 
   returnButton.onclick = () => {
+    clientNetState.isReturningToLobby = true;
     sendIntent({ type: "RETURN_LOBBY" });
     clientNetState.state = null;
     clientNetState.roomId = null;
