@@ -41,7 +41,7 @@ export const MAX_INTENTS_PER_SECOND = 10;
 // AI
 export const PIVOT_DIST = 4;
 export const STEEPNESS = 1.6;
-export const TIME_TO_AI_AUTOFILL = 8_000;
+export const TIME_TO_AI_AUTOFILL = 100;
 export const DEFAULT_BOT_AGGRESSION = 40;
 
 export const GAMER_NAMES: string[] = [
@@ -54,7 +54,7 @@ export const GAMER_NAMES: string[] = [
 
   "MysticPanda", "GrimFable", "SleepySloth", "AngryBirdie", "DogeLord",
   "LofiVibes", "PizzaThief", "BobaFettuccine", "TacoTuesday", "CerealKiller",
-  "DuckingGoose", "Marshmallowmmadness", "PoptartPower", "BubbleTeaBot", "SofaHero",
+  "DuckingGoose", "Marshmal+lowmmadness", "PoptartPower", "BubbleTeaBot", "SofaHero",
   "LaundryDay", "WiFiWarrior", "Buffered", "LowBattery", "LaggyLarry",
   "ButtonMasher", "JoystickJunkie", "RespawnRepeat", "NoobSlayer99", "LeetSpoke",
 
