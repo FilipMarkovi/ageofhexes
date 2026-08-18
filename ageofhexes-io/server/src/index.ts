@@ -135,6 +135,7 @@ const wss = new WebSocketServer({
     serverNoContextTakeover: true,
     clientNoContextTakeover: true,
   },
+  maxPayload: 1024
 });
 
 let last = Date.now();
