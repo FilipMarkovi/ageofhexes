@@ -34,10 +34,15 @@ import { drawProjectiles, enqueueProjectile } from "./render/projectiles.js";
 import { initPlacementTimerUI,updatePlacementTimerUI } from "./ui/placementTimer.js";
 import { clearAbilityMode } from "./ui/abilityMode.js";
 import { clearSiegeAttackMode } from "./ui/siegeAttackMode.js";
-import { supabase } from "./utils/db.js";
+import { supabase, handleAuthPopupIfNeeded } from "./utils/db.js";
 import { initAntiMultiTab } from "./utils/antiMultiTab.js";
 import { setupAuthAndUsername } from "./ui/lobby/auth.js";
 import { showActionError } from "./ui/hud.js";
+import { getSelectedServerHost } from "./constants/servers.js";
+
+if (await handleAuthPopupIfNeeded()) {
+  throw new Error("AgeOfHexes auth popup completed.");
+}
 
 if (!(await initAntiMultiTab())) {
   throw new Error("Another AgeOfHexes tab is already running.");
@@ -54,7 +59,7 @@ const DRAG_THRESHOLD = 14; // pixels
 
 const backendHost = window.location.hostname === "localhost"
   ? "localhost:6767"
-  : "api.ageofhexes.io";
+  : getSelectedServerHost();
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const wsUrl = `${protocol}//${backendHost}`;

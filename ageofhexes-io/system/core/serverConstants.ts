@@ -54,7 +54,7 @@ export const GAMER_NAMES: string[] = [
 
   "MysticPanda", "GrimFable", "SleepySloth", "AngryBirdie", "DogeLord",
   "LofiVibes", "PizzaThief", "BobaFettuccine", "TacoTuesday", "CerealKiller",
-  "DuckingGoose", "Marshmal+lowmmadness", "PoptartPower", "BubbleTeaBot", "SofaHero",
+  "DuckingGoose", "Marshmallowmmadness", "PoptartPower", "BubbleTeaBot", "SofaHero",
   "LaundryDay", "WiFiWarrior", "Buffered", "LowBattery", "LaggyLarry",
   "ButtonMasher", "JoystickJunkie", "RespawnRepeat", "NoobSlayer99", "LeetSpoke",
 

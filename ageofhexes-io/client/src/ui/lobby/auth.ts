@@ -2,6 +2,110 @@ import { loginWithGoogle, supabase } from "../../utils/db.js";
 import { getOrCreateGuestName, escapeHtml } from "./helpers.js";
 import { getLobbyRefs, lobbyRuntime } from "./state.js";
 
+function openUsernameModal(currentUsername: string, onConfirm: (username: string) => void) {
+  const existing = document.getElementById("lobby-username-modal-overlay");
+  if (existing) {
+    return;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = "lobby-username-modal-overlay";
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.background = "rgba(2, 6, 23, 0.72)";
+  overlay.style.backdropFilter = "blur(2px)";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.padding = "20px";
+  overlay.style.zIndex = "120";
+
+  overlay.innerHTML = `
+    <div id="lobby-username-modal" style="width:min(100%, 380px); background:#0f172a; border:1px solid rgba(56, 189, 248, 0.28); border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.45); overflow:hidden;">
+      <div style="padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.08); font:700 14px system-ui; letter-spacing:0.2px; color:#e2e8f0;">
+        Change Username
+      </div>
+      <div style="padding:14px 16px 16px;">
+        <label for="lobby-username-modal-input" style="display:block; margin-bottom:8px; color:#94a3b8; font:500 12px system-ui;">
+          Enter new username (1-15 chars)
+        </label>
+        <input id="lobby-username-modal-input" maxlength="15" style="width:100%; box-sizing:border-box; border:1px solid rgba(148, 163, 184, 0.35); border-radius:8px; padding:9px 10px; background:#020617; color:#e2e8f0; font:600 13px system-ui; outline:none;" />
+        <div id="lobby-username-modal-error" style="display:none; margin-top:8px; color:#f87171; font:500 12px system-ui;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+          <button id="lobby-username-modal-cancel" style="border:1px solid rgba(148, 163, 184, 0.4); background:transparent; color:#cbd5e1; border-radius:8px; padding:7px 12px; font:600 12px system-ui; cursor:pointer;">
+            Cancel
+          </button>
+          <button id="lobby-username-modal-save" style="border:none; background:#0ea5e9; color:white; border-radius:8px; padding:7px 12px; font:700 12px system-ui; cursor:pointer;">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector("#lobby-username-modal-input") as HTMLInputElement;
+  const errorEl = overlay.querySelector("#lobby-username-modal-error") as HTMLDivElement;
+  const cancelBtn = overlay.querySelector("#lobby-username-modal-cancel") as HTMLButtonElement;
+  const saveBtn = overlay.querySelector("#lobby-username-modal-save") as HTMLButtonElement;
+
+  const closeModal = () => {
+    document.removeEventListener("keydown", onKeyDown);
+    overlay.remove();
+  };
+
+  const setError = (message: string) => {
+    if (message) {
+      errorEl.textContent = message;
+      errorEl.style.display = "block";
+      input.style.borderColor = "rgba(248, 113, 113, 0.9)";
+      return;
+    }
+
+    errorEl.textContent = "";
+    errorEl.style.display = "none";
+    input.style.borderColor = "rgba(148, 163, 184, 0.35)";
+  };
+
+  const submit = () => {
+    const next = input.value.trim();
+    if (next.length < 1 || next.length > 15) {
+      setError("Username must be between 1 and 15 characters.");
+      return;
+    }
+
+    closeModal();
+    onConfirm(next);
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submit();
+    }
+  };
+
+  input.value = currentUsername;
+  input.focus();
+  input.select();
+  input.oninput = () => setError("");
+  cancelBtn.onclick = closeModal;
+  saveBtn.onclick = submit;
+  overlay.onclick = (event) => {
+    if (event.target === overlay) {
+      closeModal();
+    }
+  };
+  document.addEventListener("keydown", onKeyDown);
+}
+
 export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
   const refs = getLobbyRefs();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -68,16 +172,9 @@ export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
 
       dropdown.style.display = "none";
       const current = refs.inputEl.value;
-      const requested = window.prompt("Enter new username (1-15 chars)", current);
-      if (requested === null) return;
-
-      const next = requested.trim();
-      if (next.length < 1 || next.length > 15) {
-        window.alert("Username must be between 1 and 15 characters.");
-        return;
-      }
-
-      sendIntent({ type: "CHANGE_USERNAME", username: next });
+      openUsernameModal(current, (next) => {
+        sendIntent({ type: "CHANGE_USERNAME", username: next });
+      });
     };
 
     logoutBtn.onmouseenter = () => {

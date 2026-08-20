@@ -10,6 +10,7 @@ import type { LeaderboardCategory, PrivateLobbyUpdateMessage } from "./types.js"
 import { setGuestName } from "./helpers.js";
 import { USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
 import { getServerNow } from "../../utils/time.js";
+import { SERVER_OPTIONS, getSelectedServerId, setSelectedServerId } from "../../constants/servers.js";
 
 let notificationTimer: number | null = null;
 let lobbyCountdownIntervalId: number | null = null;
@@ -281,6 +282,23 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   document.body.appendChild(topBarRoot);
   const topBarAuthContainer = topBarRoot.querySelector("#top-bar-auth") as HTMLDivElement;
 
+  const serverSelectRoot = document.createElement("div");
+  serverSelectRoot.style.position = "absolute";
+  serverSelectRoot.style.top = "58px";
+  serverSelectRoot.style.left = "20px";
+  serverSelectRoot.style.zIndex = "60";
+  serverSelectRoot.style.display = "flex";
+  serverSelectRoot.style.alignItems = "center";
+  serverSelectRoot.style.gap = "6px";
+  serverSelectRoot.innerHTML = `
+    <span style="font:600 12px system-ui; color:#94a3b8;">Server:</span>
+    <select id="select-server"
+      style="padding:5px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; font-weight:600; font-size:12px; cursor:pointer;">
+      ${SERVER_OPTIONS.map((opt) => `<option value="${opt.id}">${opt.label}</option>`).join("")}
+    </select>
+  `;
+  document.body.appendChild(serverSelectRoot);
+
   const notificationEl = document.createElement("div");
   notificationEl.style.position = "absolute";
   notificationEl.style.top = "58px";
@@ -365,6 +383,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     statusEl: lobbyRoot.querySelector("#status") as HTMLDivElement,
     topBarAuthContainer,
     mainButtonsContainer: lobbyRoot.querySelector("#main-lobby-view") as HTMLDivElement,
+    serverSelect: serverSelectRoot.querySelector("#select-server") as HTMLSelectElement,
     createPrivateContainer: lobbyRoot.querySelector("#create-private-view") as HTMLDivElement,
     joinPrivateContainer: lobbyRoot.querySelector("#join-private-view") as HTMLDivElement,
     inPrivateLobbyContainer: lobbyRoot.querySelector("#in-private-view") as HTMLDivElement,
@@ -385,6 +404,12 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   setLobbyRefs(refs);
   setLobbyUIRefreshHandler(() => updateLobbyUI());
   refs.inputEl.maxLength = 15;
+
+  refs.serverSelect.value = getSelectedServerId();
+  refs.serverSelect.onchange = () => {
+    setSelectedServerId(refs.serverSelect.value);
+    window.location.reload();
+  };
 
   if (lobbyCountdownIntervalId !== null) {
     window.clearInterval(lobbyCountdownIntervalId);

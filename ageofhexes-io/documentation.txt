@@ -92,3 +92,6 @@ seconds alive player stat correctly, better bombard projectile sprite
 ---------------------------
 16.8.2026. - fixed delayed game over message, fixed bug where if pressed return to lobby when game
 is not over player had to press it twice to actually return to lobby
+---------------------------
+20.8.2026. - create a custom modal for changing authed username, implement backend server 
+location select option in lobby, change google auth to work as a popup instead of in window
