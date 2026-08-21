@@ -32,6 +32,7 @@ import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
 import { drawProjectiles, enqueueProjectile } from "./render/projectiles.js";
 import { initPlacementTimerUI,updatePlacementTimerUI } from "./ui/placementTimer.js";
+import { initLatencyDisplay } from "./ui/latencyDisplay.js";
 import { clearAbilityMode } from "./ui/abilityMode.js";
 import { clearSiegeAttackMode } from "./ui/siegeAttackMode.js";
 import { supabase, handleAuthPopupIfNeeded } from "./utils/db.js";
@@ -220,6 +221,7 @@ initZoom(canvas);
 initBuildButtons();
 initKeyboard();
 initPlacementTimerUI();
+initLatencyDisplay();
 
 
 function resize() {

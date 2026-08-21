@@ -17,4 +17,5 @@ export const clientNetState = {
   privateRoomCode: null as string | null,
   serverClockOffset: 0,
   isReturningToLobby: false,
+  latencyMs: null as number | null,
 };

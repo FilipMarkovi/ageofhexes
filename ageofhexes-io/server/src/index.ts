@@ -42,13 +42,15 @@ const server =app.listen(PORT, () => {
 
 type ClientMsg =
   | { type: "INTENT"; intent: any }
-  | { type: "AUTH", token: string, };
+  | { type: "AUTH", token: string, }
+  | { type: "PING"; t: number };
 
 export type ServerMsg =
   | { type: "WELCOME"; playerId: string; requiredPlayers: number; roomId: string }
   | { type: "LOBBY"; connected: number; required: number; roomId: string; matchStartAt: number | null; serverTime: number }
   | { type: "STATE"; full: true; state: WireState; serverTime?: number }
   | { type: "STATE"; full: false; delta: WireStateDelta; serverTime?: number }
+  | { type: "PONG"; t: number; serverTime: number }
   | {
       type: "SPECIAL_ATTACK_LAUNCHED";
       attackType: string;
@@ -509,6 +511,11 @@ wss.on("connection", (ws, req) => {
     let msg: ClientMsg | null = null;
     try { msg = JSON.parse(buf.toString()); } catch { console.log("error while json parsing");return; }
     if (!msg) return;
+
+    if (msg.type === "PING") {
+      ws.send(JSON.stringify({ type: "PONG", t: msg.t, serverTime: Date.now() } satisfies ServerMsg));
+      return;
+    }
 
     const isReturnToLobbyIntent =
       msg.type === "INTENT" &&

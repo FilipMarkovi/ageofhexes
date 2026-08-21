@@ -51,6 +51,7 @@ export type ServerMsg =
   | { type: "LOG"; text: string; color?: string }
   | { type: "AUTH_SUCCESS"; username?: string }
   | { type: "AUTH_FAILURE"; reason?: string }
+  | { type: "PONG"; t: number; serverTime: number }
   | SpecialAttackLaunchedMsg
   | PrivateLobbyMsg
   | PrivateErrorMsg
@@ -58,7 +59,10 @@ export type ServerMsg =
 
 type ClientMsg =
   | { type: "INTENT"; intent: any }
-  | { type: "AUTH"; token: string };
+  | { type: "AUTH"; token: string }
+  | { type: "PING"; t: number };
+
+const PING_INTERVAL_MS = 3000;
 
 export function connect(url: string, handlers: {
   onWelcome: (playerId: string, requiredPlayers: number, roomId: string) => void;
@@ -74,6 +78,25 @@ export function connect(url: string, handlers: {
 }) {
   const ws = new WebSocket(url);
   let latestWireState: WireState | null = null;
+  let pingIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  function sendPing() {
+    if (ws.readyState !== ws.OPEN) return;
+    const out: ClientMsg = { type: "PING", t: Date.now() };
+    ws.send(JSON.stringify(out));
+  }
+
+  ws.onopen = () => {
+    sendPing();
+    pingIntervalId = setInterval(sendPing, PING_INTERVAL_MS);
+  };
+
+  ws.onclose = () => {
+    if (pingIntervalId !== null) {
+      clearInterval(pingIntervalId);
+      pingIntervalId = null;
+    }
+  };
 
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data) as ServerMsg;
@@ -128,6 +151,10 @@ export function connect(url: string, handlers: {
         break;
       case "SPECIAL_ATTACK_LAUNCHED":
         handlers.onSpecialAttackLaunched?.(msg);
+        break;
+      case "PONG":
+        clientNetState.serverClockOffset = msg.serverTime - Date.now();
+        clientNetState.latencyMs = Date.now() - msg.t;
         break;
     }
   };

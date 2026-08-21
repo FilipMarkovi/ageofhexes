@@ -95,3 +95,6 @@ is not over player had to press it twice to actually return to lobby
 ---------------------------
 20.8.2026. - create a custom modal for changing authed username, implement backend server 
 location select option in lobby, change google auth to work as a popup instead of in window
+---------------------------
+21.8.2026. fix server location dropdown showing while in game, add ping pong messaging for latency
+measurement and displaying latency
