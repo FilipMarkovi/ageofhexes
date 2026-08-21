@@ -398,7 +398,8 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     startPrivateMatchBtn: lobbyRoot.querySelector("#btn-start-private-match") as HTMLButtonElement,
     leaderboardContainer: lobbyRoot.querySelector("#leaderboard-view") as HTMLDivElement,
     leaderboardTabsEl: lobbyRoot.querySelector("#leaderboard-tabs") as HTMLDivElement,
-    leaderboardListEl: lobbyRoot.querySelector("#leaderboard-list") as HTMLUListElement
+    leaderboardListEl: lobbyRoot.querySelector("#leaderboard-list") as HTMLUListElement,
+    serverSelectRoot
   };
 
   setLobbyRefs(refs);
@@ -597,6 +598,7 @@ export function updateLobbyUI() {
 
   const showTopBar = clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED";
   refs.topBarRoot.style.display = showTopBar ? "flex" : "none";
+  refs.serverSelectRoot.style.display = showTopBar ? "flex" : "none";
   refs.playBtn.textContent = clientUIState.phase === "QUEUED" ? "Cancel Queue" : "Quick Play";
 
   const isLobby = clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED";

@@ -16,6 +16,7 @@ export interface LobbyRefs {
   topBarAuthContainer: HTMLDivElement;
   mainButtonsContainer: HTMLDivElement;
   serverSelect: HTMLSelectElement;
+  serverSelectRoot: HTMLDivElement;
   createPrivateContainer: HTMLDivElement;
   joinPrivateContainer: HTMLDivElement;
   inPrivateLobbyContainer: HTMLDivElement;
