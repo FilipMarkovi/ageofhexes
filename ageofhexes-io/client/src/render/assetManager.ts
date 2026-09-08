@@ -9,7 +9,6 @@ export const tileTextures = {
 };
 
 export type SkinTexture = { pattern: CanvasPattern; scale: number; alpha: number };
-// Keyed by skinId. Only skins with a SKIN_OVERLAYS config end up populated here.
 export const skinPatterns: Record<string, SkinTexture | null> = {};
 
 export const buildingImages: Record<string, HTMLImageElement> = {};
@@ -25,49 +24,53 @@ export const playerEffectImages: Record<string, HTMLImageElement | null> = {
   HYPERINFLATION: null,
 };
 
-const asset_folder = "../../../assets/";
+// Helper function to resolve relative asset paths safely through Vite's bundler
+function getAssetUrl(path: string): string {
+  return new URL(path, import.meta.url).href;
+}
 
 export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () => void) {
-  // Define image sources
+  // Define image sources using dynamic asset URLs
   const tileSources = {
-    grass: asset_folder + "grass.jpg",
-    desert: asset_folder + "desert.jpg",
-    mountain: asset_folder + "mountain.jpg",
-    water: asset_folder + "water.jpg",
+    grass: getAssetUrl("../../../assets/grass.jpg"),
+    desert: getAssetUrl("../../../assets/desert.jpg"),
+    mountain: getAssetUrl("../../../assets/mountain.jpg"),
+    water: getAssetUrl("../../../assets/water.jpg"),
   };
 
-  // Add your building icon PNGs here (Make sure filenames match!)
   const buildingSources: Record<string, string> = {
-    HOUSE: asset_folder + "house.png",
-    BARRACKS: asset_folder + "barracks.png",
-    FORT: asset_folder + "fort.png",
-    LABORATORY: asset_folder + "laboratory.png",
-    HARBOR: asset_folder + "harbor.png",
-    SIEGE_OUTPOST: asset_folder + "siege_outpost.png",
-    HQ: asset_folder + "hq.png",
-    PLAGUE_SOURCE: asset_folder + "plague_source.png",
+    HOUSE: getAssetUrl("../../../assets/house.png"),
+    BARRACKS: getAssetUrl("../../../assets/barracks.png"),
+    FORT: getAssetUrl("../../../assets/fort.png"),
+    LABORATORY: getAssetUrl("../../../assets/laboratory.png"),
+    HARBOR: getAssetUrl("../../../assets/harbor.png"),
+    SIEGE_OUTPOST: getAssetUrl("../../../assets/siege_outpost.png"),
+    HQ: getAssetUrl("../../../assets/hq.png"),
+    PLAGUE_SOURCE: getAssetUrl("../../../assets/plague_source.png"),
   };
 
   const miscSources = {
-    ship: asset_folder + "ship.png",
-    bombard: asset_folder + "bombard.png",
-    plagueBomb: asset_folder + "plague_bomb.png",
+    ship: getAssetUrl("../../../assets/ship.png"),
+    bombard: getAssetUrl("../../../assets/bombard.png"),
+    plagueBomb: getAssetUrl("../../../assets/plague_bomb.png"),
   };
 
   const tileEffectSources = {
-    brokenGround: asset_folder + "broken_ground.png",
-    plagued: asset_folder + "plagued.png",
+    brokenGround: getAssetUrl("../../../assets/broken_ground.png"),
+    plagued: getAssetUrl("../../../assets/plagued.png"),
   };
 
   const playerEffectSources = {
-    ATTACK_SPEED: asset_folder + "attack_speed_icon.png",
-    ARMY_GAIN_BUFF: asset_folder + "army_gain_buff_icon.png",
-    HYPERINFLATION: asset_folder + "hiperinflation_icon.png",
+    ATTACK_SPEED: getAssetUrl("../../../assets/attack_speed_icon.png"),
+    ARMY_GAIN_BUFF: getAssetUrl("../../../assets/army_gain_buff_icon.png"),
+    HYPERINFLATION: getAssetUrl("../../../assets/hiperinflation_icon.png"),
   };
 
-  const skin_folder = "../../../skins/";
   const skinOverlaySources = (Object.keys(SKIN_OVERLAYS) as SkinId[]).map(
-    (skinId): [SkinId, string] => [skinId, skin_folder + skinId + ".png"]
+    (skinId): [SkinId, string] => [
+      skinId,
+      getAssetUrl(`../../../skins/${skinId}.png`)
+    ]
   );
 
   const totalImages =
@@ -94,8 +97,8 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
       tileTextures[key] = ctx.createPattern(img, "repeat");
       checkLoad();
     };
-
     img.onerror = () => {
+      console.error(`Failed to load tile texture: ${key}`);
       checkLoad(); 
     };
   });
@@ -108,8 +111,8 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
       buildingImages[type] = img;
       checkLoad();
     };
-
     img.onerror = () => {
+      console.error(`Failed to load building image: ${type}`);
       checkLoad(); 
     };
   });
@@ -124,8 +127,8 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
       if (type === "plagueBomb") projectileImages.PLAGUE_BOMB = img;
       checkLoad();
     };
-
     img.onerror = () => {
+      console.error(`Failed to load misc image: ${type}`);
       checkLoad();
     };
   });
@@ -139,8 +142,8 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
       if (type === "plagued") tileEffectImages.plagued = img;
       checkLoad();
     };
-
     img.onerror = () => {
+      console.error(`Failed to load tile effect image: ${type}`);
       checkLoad();
     };
   });
@@ -153,13 +156,13 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
       playerEffectImages[type] = img;
       checkLoad();
     };
-
     img.onerror = () => {
+      console.error(`Failed to load player effect image: ${type}`);
       checkLoad();
     };
   });
 
-  // Load Skin Overlay Textures (territory pattern tiled across a configurable span of hexes)
+  // Load Skin Overlay Textures
   skinOverlaySources.forEach(([skinId, src]) => {
     const config = SKIN_OVERLAYS[skinId];
     const img = new Image();
@@ -167,12 +170,16 @@ export function loadGameTextures(ctx: CanvasRenderingContext2D, onComplete: () =
     img.onload = () => {
       const pattern = ctx.createPattern(img, "repeat");
       if (pattern && config) {
-        skinPatterns[skinId] = { pattern, scale: (config.spanHexes * HEX_SIZE) / img.naturalWidth, alpha: config.alpha };
+        skinPatterns[skinId] = {
+          pattern,
+          scale: (config.spanHexes * HEX_SIZE) / img.naturalWidth,
+          alpha: config.alpha,
+        };
       }
       checkLoad();
     };
-
     img.onerror = () => {
+      console.error(`Failed to load skin image: ${skinId}`);
       checkLoad();
     };
   });
