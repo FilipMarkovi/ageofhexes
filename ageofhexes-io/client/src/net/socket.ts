@@ -91,6 +91,7 @@ export function connect(url: string, handlers: {
   onReconnected?: () => void;
 }) {
   let ws: WebSocket;
+  let currentUrl = url;
   let latestWireState: WireState | null = null;
   let pingIntervalId: ReturnType<typeof setInterval> | null = null;
   let reconnectAttemptPending = false;
@@ -110,7 +111,7 @@ export function connect(url: string, handlers: {
   }
 
   function openSocket() {
-    ws = new WebSocket(url);
+    ws = new WebSocket(currentUrl);
 
     ws.onopen = () => {
       reconnectAttemptPending = false;
@@ -233,5 +234,17 @@ export function connect(url: string, handlers: {
     ws.send(JSON.stringify(out));
   }
 
-  return { sendIntent, tryAuth };
+  // Switches to a different server without a page reload; onclose triggers a reconnect against the new URL.
+  function changeUrl(newUrl: string) {
+    if (newUrl === currentUrl) return;
+    currentUrl = newUrl;
+    latestWireState = null;
+    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      ws.close();
+    } else {
+      reconnect();
+    }
+  }
+
+  return { sendIntent, tryAuth, changeUrl };
 }

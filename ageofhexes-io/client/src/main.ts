@@ -27,7 +27,8 @@ import { getConnectedTilesFromHQ_Client } from "./utils/supply.js";
 import { drawTileInfo } from "./ui/tileInfo.js";
 import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI, showError, showSuccess } from "./ui/lobby/index.js";
 import { scheduleLobbyUIUpdate } from "./ui/lobby/state.js";
-import { maybeJoinPrivateRoute } from "./ui/lobby/routes.js";
+import { maybeJoinPrivateRoute, setLobbyTopTab, syncRouteFromState } from "./ui/lobby/routes.js";
+import { setPrivateView } from "./ui/lobby/privateLobby.js";
 import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
 import { drawProjectiles, enqueueProjectile } from "./render/projectiles.js";
@@ -78,7 +79,7 @@ function skinPurchaseErrorMessage(reason?: string): string {
   }
 }
 
-export const { sendIntent, tryAuth } = connect(wsUrl, {
+const socket = connect(wsUrl, {
   onWelcome: async (id, requiredPlayers, roomId) => {
     clientNetState.playerId = id;
     clientNetState.lobby = { connected: 0, required: requiredPlayers, roomId, matchStartAt: null };
@@ -275,6 +276,32 @@ export const { sendIntent, tryAuth } = connect(wsUrl, {
     scheduleLobbyUIUpdate();
   }
 });
+
+export const { sendIntent, tryAuth } = socket;
+
+// Switches the active server connection in place instead of reloading the page, which would
+// break the game when embedded in a sandboxed iframe (e.g. CrazyGames).
+export function switchServer(host: string) {
+  const newHost = window.location.hostname === "localhost" ? "localhost:6767" : host;
+  const newUrl = `${protocol}//${newHost}`;
+
+  clientNetState.state = null;
+  clientNetState.playerId = null;
+  clientNetState.roomId = null;
+  clientNetState.privateRoomCode = null;
+  clientNetState.matchStats = null;
+  clientNetState.isReturningToLobby = false;
+  clientUIState.phase = "LOBBY";
+  clientUIState.selectedBuilding = null;
+  clientUIState.selectedAbility = null;
+  clientUIState.selectedSpecialAttack = null;
+  setLobbyTopTab("LOBBY");
+  setPrivateView("MAIN", hideError);
+
+  socket.changeUrl(newUrl);
+  syncRouteFromState();
+  scheduleLobbyUIUpdate();
+}
 
 const canvas = document.getElementById("c") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;

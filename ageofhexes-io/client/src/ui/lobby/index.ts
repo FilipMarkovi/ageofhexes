@@ -16,6 +16,7 @@ import { getServerNow } from "../../utils/time.js";
 import { SERVER_OPTIONS, getSelectedServerId, setSelectedServerId } from "../../constants/servers.js";
 import { initLobbyHexBackground, setLobbyHexBackgroundVisible } from "./hexBackground.js";
 import { attachNumberStepper } from "./helpers.js";
+import { switchServer } from "../../main.js";
 
 let notificationTimer: number | null = null;
 let lobbyCountdownIntervalId: number | null = null;
@@ -525,7 +526,8 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   refs.serverSelect.value = getSelectedServerId();
   refs.serverSelect.onchange = () => {
     setSelectedServerId(refs.serverSelect.value);
-    window.location.reload();
+    const host = SERVER_OPTIONS.find((opt) => opt.id === refs.serverSelect.value)?.host;
+    if (host) switchServer(host);
   };
 
   if (lobbyCountdownIntervalId !== null) {
