@@ -189,12 +189,12 @@ const wss = new WebSocketServer({
     if (
       !origin ||
       origin.includes("localhost") ||
+      origin.includes("127.0.0.1") ||
       origin.includes("ageofhexes.io") ||
       origin.includes("itch.io") ||
       origin.includes("html.itch.zone") ||
-      origin.includes("https://www.crazygames.com") ||
-      origin.includes("https://files.crazygames.com") ||
-      origin.includes("https://developer.crazygames.com")
+      origin.includes("crazygames.com") ||
+      origin.includes("crazygames.")
     ) {
       const ip = getClientIp(info.req);
       if ((ipConnectionCounts.get(ip) || 0) >= MAX_WS_PER_IP) {
