@@ -119,3 +119,8 @@ implement sync of equipped skins between players, add skin preview image to stor
 4.9.2026. - position camera to map center at match start and restrict camera movement to the map,
 add check to trycapture if naval attack targets HQ or HARBOR, add hex background in lobby
 that reacts to mouse movement
+--------------------------
+8.9.2026. - add coins earned to the post match results, hover over skin preview in store and
+inventory to see larger skin preview image, removed default arrows look on numerical
+increase/decrease elements, added special effects for special attack hits, fix private
+room creation error right after playing a regular match, allow crazygames iframe

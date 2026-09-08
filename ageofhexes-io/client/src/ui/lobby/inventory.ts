@@ -1,5 +1,5 @@
 import { DEFAULT_SKIN_ID, SKINS_CATALOG } from "../../../../shared/storeItems.js";
-import { escapeHtml, getEquippedSkin, setEquippedSkin } from "./helpers.js";
+import { attachSkinPreviewHover, escapeHtml, getEquippedSkin, setEquippedSkin } from "./helpers.js";
 import { getLobbyRefs, lobbyRuntime } from "./state.js";
 
 export function renderInventory() {
@@ -28,12 +28,14 @@ export function renderInventory() {
     })
     .join("");
 
-  refs.inventoryListEl.querySelectorAll("button[data-skin-id]").forEach((btn) => {
+  refs.inventoryListEl.querySelectorAll<HTMLButtonElement>("button[data-skin-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const skinId = btn.getAttribute("data-skin-id");
       if (!skinId || skinId === getEquippedSkin()) return;
       setEquippedSkin(skinId);
       renderInventory();
     });
+    const skinId = btn.getAttribute("data-skin-id");
+    if (skinId) attachSkinPreviewHover(btn, `/skin_previews/${skinId}_preview.png`);
   });
 }

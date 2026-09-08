@@ -15,6 +15,7 @@ import type { PlayerMatchStats } from "../../../../shared/index.js";
 import { getServerNow } from "../../utils/time.js";
 import { SERVER_OPTIONS, getSelectedServerId, setSelectedServerId } from "../../constants/servers.js";
 import { initLobbyHexBackground, setLobbyHexBackgroundVisible } from "./hexBackground.js";
+import { attachNumberStepper } from "./helpers.js";
 
 let notificationTimer: number | null = null;
 let lobbyCountdownIntervalId: number | null = null;
@@ -519,6 +520,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   setLobbyRefs(refs);
   setLobbyUIRefreshHandler(() => updateLobbyUI());
   refs.inputEl.maxLength = 15;
+  attachNumberStepper(refs.maxPlayersInput, { min: MIN_PRIVATE_ROOM_PLAYERS, max: MAX_PRIVATE_ROOM_PLAYERS });
 
   refs.serverSelect.value = getSelectedServerId();
   refs.serverSelect.onchange = () => {
@@ -841,6 +843,7 @@ function renderMatchStats(container: HTMLDivElement, stats: PlayerMatchStats | n
     ["Gold Spent", `${stats.goldSpent}`],
     ["Army Spent", `${stats.armySpent}`],
     ["Survival Time", formatSurvivalTime(stats.survivalTimeSeconds)],
+    ["Coins Earned", `${stats.coinsEarned ?? 0} 🪙`],
   ];
 
   container.innerHTML = rows

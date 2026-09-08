@@ -13,7 +13,8 @@ import {
   buildWaterNetwork,
   type WireStateDelta,
   type WireState,
-  checkGameOver
+  checkGameOver,
+  averageTimer
 } from "../../system/index.js";
 import { STARTING_GOLD, STARTING_ARMY, TICK_RATE } from "../../shared/constants.js";
 import { initMap } from "./init/initMap.js";
@@ -89,11 +90,16 @@ export function sendMatchResults(playerId: PlayerId) {
   const roomId = playerRoom.get(playerId);
   if (!roomId) return;
 
-  const stats = rooms.get(roomId)?.matchStats.get(playerId);
+  const room = rooms.get(roomId);
+  const stats = room?.matchStats.get(playerId);
   if (!stats) return;
 
+  const isWin = stats.placement === 1;
+  const isEligible = room?.privateSettings === null && authSessions.has(playerId) && stats.survivalTimeSeconds >= MINIMUM_SURVIVAL_TIME_FOR_COINS;
+  const coinsEarned = isEligible ? (isWin ? COINS_REWARD_WIN : COINS_REWARD_LOSS) : 0;
+
   if (socket && socket.readyState === socket.OPEN) {
-    socket.send(JSON.stringify({ type: "POST_MATCH_RESULTS", stats } satisfies ServerMsg));
+    socket.send(JSON.stringify({ type: "POST_MATCH_RESULTS", stats: { ...stats, coinsEarned } } satisfies ServerMsg));
   }
 }
 
@@ -166,6 +172,16 @@ const sockets = new Map<PlayerId, WebSocket>();
 const socketLifetime = new Map<PlayerId, number>(); // player -> time when websocket was created
 const intentHistory = new Map<PlayerId, number[]>();
 
+const MAX_WS_PER_IP = 3;
+const ipConnectionCounts = new Map<string, number>();
+const socketIp = new Map<PlayerId, string>(); // player -> ip, so we can decrement the right bucket on close
+
+function getClientIp(req: import("node:http").IncomingMessage): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  const forwardedIp = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0];
+  return forwardedIp?.trim() || req.socket.remoteAddress || "unknown";
+}
+
 const wss = new WebSocketServer({
   server,
   verifyClient: (info, callback) => {
@@ -175,8 +191,16 @@ const wss = new WebSocketServer({
       origin.includes("localhost") ||
       origin.includes("ageofhexes.io") ||
       origin.includes("itch.io") ||
-      origin.includes("html.itch.zone")
+      origin.includes("html.itch.zone") ||
+      origin.includes("https://www.crazygames.com") ||
+      origin.includes("https://files.crazygames.com") ||
+      origin.includes("https://developer.crazygames.com") ||
     ) {
+      const ip = getClientIp(info.req);
+      if ((ipConnectionCounts.get(ip) || 0) >= MAX_WS_PER_IP) {
+        callback(false, 429, "Too Many Connections");
+        return;
+      }
       callback(true);
     } else {
       callback(false, 403, "Unauthorized Origin");
@@ -424,6 +448,12 @@ function destroyRoomSoon(roomId: RoomId) {
   if (!room || room.closing) return;
   room.closing = true;
 
+  // Free players from this room immediately (the tick loop already skips closing rooms),
+  // so they can create/join another room without waiting on the async save + teardown delay below.
+  for (const pid of room.playerIds) {
+    playerRoom.delete(pid);
+  }
+
   const savePromises = [];
 
   if (room.privateSettings === null) { // Only save stats for public matches
@@ -522,7 +552,7 @@ export function startMatchIfReady(room: GameRoom) {
 let tickCount = 0;
 let totalTickTimeMs = 0;
 let lastMetricsLog = Date.now();
-
+const timer = new averageTimer();
 
 let bot_tick = 8;
 
@@ -548,8 +578,13 @@ setInterval(() => {
 
     const dt = (now - room.lastTickMs) / 1000;
     room.lastTickMs = now;
+    timer.reset_time();
     if (bot_tick == 0)
       runBots(room);
+    timer.getDelta();
+    if (timer.count % 100 === 0) {
+      //console.log(`Average bots time: ${timer.getAverage()}s`);
+    }
     tick(room.state, dt);
     checkGameOver(room.state);
     broadcastRoomState(room);
@@ -575,6 +610,9 @@ setInterval(() => {
 
 wss.on("connection", (ws, req) => {
   const playerId = crypto.randomUUID();
+  const ip = getClientIp(req);
+  ipConnectionCounts.set(ip, (ipConnectionCounts.get(ip) || 0) + 1);
+  socketIp.set(playerId, ip);
   sockets.set(playerId, ws);
   socketLifetime.set(playerId, Date.now());
   console.log(`[CONNECT] Player ${playerId} connected. Total active players: ${sockets.size}`);
@@ -905,6 +943,17 @@ wss.on("connection", (ws, req) => {
     socketLifetime.delete(playerId);
     sockets.delete(playerId);
     intentHistory.delete(playerId);
+
+    const disconnectIp = socketIp.get(playerId);
+    if (disconnectIp) {
+      const remaining = (ipConnectionCounts.get(disconnectIp) || 1) - 1;
+      if (remaining <= 0) {
+        ipConnectionCounts.delete(disconnectIp);
+      } else {
+        ipConnectionCounts.set(disconnectIp, remaining);
+      }
+      socketIp.delete(playerId);
+    }
 
     const authSession = authSessions.get(playerId);
     if (authSession) {

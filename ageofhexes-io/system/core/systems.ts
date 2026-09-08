@@ -21,6 +21,7 @@ import type { CoreGameState } from "./state.js";
 import { handlePlaceHQ } from "./state.js";
 import { getTile, isAdjacentOwned, isAdjacentOwnedAndConnected } from "./state.js";
 import { sendPlayerLog, updatePlayerStat, sendMatchResults } from "../../server/src/index.js";
+import { averageTimer } from "./util.js";
 
 export type Intent =
   | { type: "PLACE_HQ"; q: number; r: number }
@@ -470,6 +471,7 @@ export function tryBuild(
   return true;
 }
 
+const timer = new averageTimer();
 export function tick(state: CoreGameState, dt: number) {
   if (state.phase === "HQ_PLACEMENT") return;
 
@@ -480,8 +482,9 @@ export function tick(state: CoreGameState, dt: number) {
   if (now - (state.lastPlagueSpreadAt ?? now) >= PLAGUE_SPREAD_INTERVAL_MS) {
     spreadPlagueFromSources(state);
     state.lastPlagueSpreadAt = now;
-  }
+  } 
 
+  timer.reset_time();
   for (const p of state.players.values()) {
     if (!p.eliminated && p.status === "PLAYING") {
       state.connectedCache.set(
@@ -500,6 +503,10 @@ export function tick(state: CoreGameState, dt: number) {
         }
       }
     }
+  }
+  timer.getDelta();
+  if (timer.count % 100 === 0) {
+    //console.log(`Average connected tiles computation time: ${timer.getAverage()}s`);
   }
 
   // Count connected tiles + barracks

@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- CrazyGames SDK -->
+  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+
   <!-- Primary Search Engine Tags -->
   <title>Age of Hexes (Alpha)</title>
   <meta name="title" content="Age of Hexes (Alpha)">
@@ -20,7 +23,7 @@
   <meta property="og:url" content="https://ageofhexes.io/">
   <meta property="og:title" content="Age of Hexes">
   <meta property="og:description" content="Capture territory, outsmart opponents, and rule the hex grid. Play for free in your browser!">
-  <meta property="og:image" content="https://ageofhexes.io/og-image.png"> <!-- 1200x630px image URL -->
+  <meta property="og:image" content="https://ageofhexes.io/og-image.png">
   <meta property="og:site_name" content="Age of Hexes">
 
   <!-- Twitter/X Card Tags -->
@@ -31,18 +34,14 @@
   <meta name="twitter:image" content="https://ageofhexes.io/og-image.png">
 
   <!-- Favicon / Tab Icons -->
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="icon" type="image/png" sizes="96x96" href="./favicon-96x96.png">
 
-  <!-- Apple Touch Icon (Mobile Safari shortcuts) -->
-  <link rel="apple-touch-icon" href="/favicon-96x96.png">
+  <!-- Apple Touch Icon -->
+  <link rel="apple-touch-icon" href="./favicon-96x96.png">
 
-  <!-- Open Graph / Discord / Facebook og:image -->
-  <meta property="og:image" content="https://ageofhexes.io/og-image.png">
-  <meta name="twitter:image" content="https://ageofhexes.io/og-image.png">
-
-  <!-- Structured Data (Schema.org JSON-LD for Google rich game results) -->
+  <!-- Structured Data (Schema.org JSON-LD) -->
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -62,7 +61,7 @@
 
   <style>
     body { margin: 0; background: #111; color: white; overflow: hidden; }
-    canvas { display: block; }
+    canvas { display: block; width: 100vw; height: 100vh; }
 
     /* Combined Footer Container */
     #footer-info {
@@ -79,15 +78,13 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
+      pointer-events: none;
     }
 
-    /* Links inside credits matching the text color & style */
     #footer-info a {
       color: inherit;
       text-decoration: underline;
-    }
-    #copyright {
-      pointer-events: none;
+      pointer-events: auto;
     }
   </style>
 </head>
@@ -97,6 +94,6 @@
     <div id="copyright">&copy; 2026 Age of Hexes&trade;. All rights reserved.</div>
     <div id="credits">Icons by Lorcc & Delapouite (<a href="https://game-icons.net" target="_blank" rel="noopener noreferrer">game-icons.net</a>) / CC BY 3.0</div>
   </div>
-  <script type="module" src="/src/main.ts"></script>
+  <script type="module" src="./src/main.ts"></script>
 </body>
 </html>

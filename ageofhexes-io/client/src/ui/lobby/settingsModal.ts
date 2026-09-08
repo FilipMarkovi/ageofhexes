@@ -1,4 +1,5 @@
 import { loadSettings, updateSettings, DEFAULT_KEYBINDS, DEFAULT_FPS, type Keybinds } from "../../input/settings.js";
+import { attachNumberStepper } from "./helpers.js";
 
 const KEYBIND_LABELS: Array<{ key: keyof Keybinds; label: string }> = [
   { key: "buildFort", label: "Build Fort" },
@@ -79,6 +80,7 @@ export function openSettingsModal() {
   const errorEl = overlay.querySelector("#settings-modal-error") as HTMLDivElement;
   const fpsInput = overlay.querySelector("#settings-fps-input") as HTMLInputElement;
   const keybindInputs = Array.from(overlay.querySelectorAll("input[data-keybind]")) as HTMLInputElement[];
+  attachNumberStepper(fpsInput, { min: 10, max: 240 });
 
   const setError = (message: string) => {
     errorEl.textContent = message;

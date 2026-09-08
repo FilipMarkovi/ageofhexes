@@ -67,3 +67,54 @@ export function getTileRing(Tq: number, Tr: number, radius: number): Set<string>
   return results;
 }
 
+class Timer {
+  private lastTime: number;
+
+  constructor() {
+    this.lastTime = Date.now();
+  }
+
+  public getDelta(): number {
+    const now = Date.now();
+    const delta = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+    return delta;
+  }
+}
+
+class averageTimer {
+  private lastTime: number;
+  private totalDelta: number;
+  public count: number;
+
+  constructor() {
+    this.lastTime = Date.now();
+    this.totalDelta = 0;
+    this.count = 0;
+  }
+
+  public full_reset(): void {
+    this.lastTime = Date.now();
+    this.totalDelta = 0;
+    this.count = 0;
+  }
+
+  public reset_time(): void {
+    this.lastTime = Date.now();
+  }
+
+  public getDelta(): number {
+    const now = Date.now();
+    const delta = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+    this.totalDelta += delta;
+    this.count++;
+    return delta;
+  }
+
+  public getAverage(): number {
+    return this.count === 0 ? 0 : this.totalDelta / this.count;
+  }
+}
+
+export { Timer, averageTimer };

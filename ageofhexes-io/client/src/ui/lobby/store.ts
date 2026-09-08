@@ -1,5 +1,5 @@
 import { SKINS_CATALOG } from "../../../../shared/storeItems.js";
-import { escapeHtml } from "./helpers.js";
+import { attachSkinPreviewHover, escapeHtml } from "./helpers.js";
 import { getLobbyRefs, lobbyRuntime } from "./state.js";
 
 function openPurchaseConfirmation(itemName: string, price: number, onConfirm: () => void) {
@@ -71,7 +71,7 @@ export function renderStore() {
     })
     .join("");
 
-  refs.storeListEl.querySelectorAll("button[data-skin-id]").forEach((btn) => {
+  refs.storeListEl.querySelectorAll<HTMLButtonElement>("button[data-skin-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const skinId = btn.getAttribute("data-skin-id");
       if (!skinId || owned.has(skinId)) return;
@@ -79,5 +79,7 @@ export function renderStore() {
       if (!item) return;
       openPurchaseConfirmation(item.name, item.price, () => lobbyRuntime.buySkinHandler?.(skinId));
     });
+    const skinId = btn.getAttribute("data-skin-id");
+    if (skinId) attachSkinPreviewHover(btn, `/skin_previews/${skinId}_preview.png`);
   });
 }
