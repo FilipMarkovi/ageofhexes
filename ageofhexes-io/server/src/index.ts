@@ -78,6 +78,8 @@ interface AuthenticatedSession {
   lastSavedCoins: number; // coins value already persisted to the database
   username: string;
   ownedSkins: string[];
+  // CrazyGames usernames are managed on crazygames.com, not in-game.
+  provider: "google" | "crazygames";
 }
 
 function sendCoinsUpdate(playerId: PlayerId, coins: number) {
@@ -173,7 +175,7 @@ const playerRoom = new Map<PlayerId, RoomId>(); // player -> room
 
 // Shared tail of every auth flow (Google, CrazyGames): caches the session, rebinds
 // stats tracked before auth completed, applies the username and notifies the client.
-function completeAuthSession(ws: WebSocket, playerId: PlayerId, dbId: string, dbPlayer: { coins: number | null; username: string | null; owned_skins: unknown }) {
+function completeAuthSession(ws: WebSocket, playerId: PlayerId, dbId: string, dbPlayer: { coins: number | null; username: string | null; owned_skins: unknown }, provider: "google" | "crazygames") {
   const profileUsername = typeof dbPlayer.username === "string" && dbPlayer.username.trim().length > 0
     ? dbPlayer.username.trim()
     : "Player";
@@ -186,6 +188,7 @@ function completeAuthSession(ws: WebSocket, playerId: PlayerId, dbId: string, db
     lastSavedCoins: profileCoins,
     username: profileUsername,
     ownedSkins: profileOwnedSkins,
+    provider,
   });
 
   // if player joined room before auth was done
@@ -704,10 +707,7 @@ wss.on("connection", (ws, req) => {
           throw new Error("Missing player profile");
         }
 
-        const profileUsername = typeof dbPlayer.username === "string" && dbPlayer.username.trim().length > 0
-          ? dbPlayer.username.trim()
-          : "Player";
-        completeAuthSession(ws, playerId, googleUID, dbPlayer);
+        completeAuthSession(ws, playerId, googleUID, dbPlayer, "google");
       } catch (err) {
         ws.send(JSON.stringify({ type: "AUTH_FAILURE", reason: "Authentication failed." }));
       }
@@ -777,7 +777,7 @@ wss.on("connection", (ws, req) => {
         }
 
         // Auth succeeded!
-        completeAuthSession(ws, playerId, dbPlayer.id, dbPlayer);
+        completeAuthSession(ws, playerId, dbPlayer.id, dbPlayer, "crazygames");
 
       } catch (err) {
         console.error("[CRAZYGAMES AUTH] Failed:", err);
@@ -804,6 +804,11 @@ wss.on("connection", (ws, req) => {
 
       const session = authSessions.get(playerId);
       if (!session) {
+        socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: false, reason: "NOT_AUTHED" }));
+        return;
+      }
+
+      if (session.provider === "crazygames") {
         socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: false, reason: "NOT_AUTHED" }));
         return;
       }

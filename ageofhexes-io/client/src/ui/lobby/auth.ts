@@ -132,7 +132,7 @@ function renderUserMenu(
   refs: LobbyRefs,
   username: string,
   sendIntent: ((intent: any) => void) | undefined,
-  options: { onLogout?: () => void } = {}
+  options: { onLogout?: () => void; hideChangeUsername?: boolean } = {}
 ) {
   const safeUsername = escapeHtml(username);
 
@@ -146,9 +146,10 @@ function renderUserMenu(
       </button>
     </div>
     <div id="auth-dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:6px; min-width:190px; box-shadow:0 4px 12px rgba(0,0,0,0.5); overflow:hidden;">
+      ${options.hideChangeUsername ? "" : `
       <button id="change-username-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
         Change Username
-      </button>
+      </button>`}
       <button id="settings-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
         Settings
       </button>
@@ -161,7 +162,7 @@ function renderUserMenu(
 
   const trigger = refs.topBarAuthContainer.querySelector("#user-menu-trigger") as HTMLButtonElement;
   const dropdown = refs.topBarAuthContainer.querySelector("#auth-dropdown") as HTMLDivElement;
-  const changeUsernameBtn = refs.topBarAuthContainer.querySelector("#change-username-btn") as HTMLButtonElement;
+  const changeUsernameBtn = refs.topBarAuthContainer.querySelector("#change-username-btn") as HTMLButtonElement | null;
   const settingsBtn = refs.topBarAuthContainer.querySelector("#settings-btn") as HTMLButtonElement;
   const logoutBtn = refs.topBarAuthContainer.querySelector("#logout-btn") as HTMLButtonElement | null;
 
@@ -170,22 +171,24 @@ function renderUserMenu(
     dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
   };
 
-  changeUsernameBtn.onmouseenter = () => {
-    changeUsernameBtn.style.background = "rgba(255, 255, 255, 0.08)";
-  };
-  changeUsernameBtn.onmouseleave = () => {
-    changeUsernameBtn.style.background = "none";
-  };
+  if (changeUsernameBtn) {
+    changeUsernameBtn.onmouseenter = () => {
+      changeUsernameBtn.style.background = "rgba(255, 255, 255, 0.08)";
+    };
+    changeUsernameBtn.onmouseleave = () => {
+      changeUsernameBtn.style.background = "none";
+    };
 
-  changeUsernameBtn.onclick = () => {
-    if (!sendIntent) return;
+    changeUsernameBtn.onclick = () => {
+      if (!sendIntent) return;
 
-    dropdown.style.display = "none";
-    const current = refs.inputEl.value;
-    openUsernameModal(current, (next) => {
-      sendIntent({ type: "CHANGE_USERNAME", username: next });
-    });
-  };
+      dropdown.style.display = "none";
+      const current = refs.inputEl.value;
+      openUsernameModal(current, (next) => {
+        sendIntent({ type: "CHANGE_USERNAME", username: next });
+      });
+    };
+  }
 
   settingsBtn.onmouseenter = () => {
     settingsBtn.style.background = "rgba(255, 255, 255, 0.08)";
@@ -227,7 +230,8 @@ export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
 
     const username = getCrazyGamesDisplayUsername() ?? cgAuth.username;
     applyAuthenticatedInput(refs, username);
-    renderUserMenu(refs, username, sendIntent);
+    // Username is managed on the CrazyGames website, not in-game.
+    renderUserMenu(refs, username, sendIntent, { hideChangeUsername: true });
     return;
   }
 
