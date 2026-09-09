@@ -1,7 +1,8 @@
 import { loginWithGoogle, supabase } from "../../utils/db.js";
 import { getOrCreateGuestName, escapeHtml } from "./helpers.js";
-import { getLobbyRefs, lobbyRuntime } from "./state.js";
+import { getLobbyRefs, lobbyRuntime, type LobbyRefs } from "./state.js";
 import { openSettingsModal } from "./settingsModal.js";
+import { getCrazyGamesAuth, getCrazyGamesDisplayUsername, isCrazyGamesEnvironment } from "../../utils/crazygames.js";
 
 function openUsernameModal(currentUsername: string, onConfirm: (username: string) => void) {
   const existing = document.getElementById("lobby-username-modal-overlay");
@@ -28,9 +29,9 @@ function openUsernameModal(currentUsername: string, onConfirm: (username: string
       </div>
       <div style="padding:14px 16px 16px;">
         <label for="lobby-username-modal-input" style="display:block; margin-bottom:8px; color:#94a3b8; font:500 12px system-ui;">
-          Enter new username (1-15 chars)
+          Enter new username (1-20 chars)
         </label>
-        <input id="lobby-username-modal-input" maxlength="15" style="width:100%; box-sizing:border-box; border:1px solid rgba(148, 163, 184, 0.35); border-radius:8px; padding:9px 10px; background:#020617; color:#e2e8f0; font:600 13px system-ui; outline:none;" />
+        <input id="lobby-username-modal-input" maxlength="20" style="width:100%; box-sizing:border-box; border:1px solid rgba(148, 163, 184, 0.35); border-radius:8px; padding:9px 10px; background:#020617; color:#e2e8f0; font:600 13px system-ui; outline:none;" />
         <div id="lobby-username-modal-error" style="display:none; margin-top:8px; color:#f87171; font:500 12px system-ui;"></div>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
           <button id="lobby-username-modal-cancel" style="border:1px solid rgba(148, 163, 184, 0.4); background:transparent; color:#cbd5e1; border-radius:8px; padding:7px 12px; font:600 12px system-ui; cursor:pointer;">
@@ -71,8 +72,8 @@ function openUsernameModal(currentUsername: string, onConfirm: (username: string
 
   const submit = () => {
     const next = input.value.trim();
-    if (next.length < 1 || next.length > 15) {
-      setError("Username must be between 1 and 15 characters.");
+    if (next.length < 1 || next.length > 20) {
+      setError("Username must be between 1 and 20 characters.");
       return;
     }
 
@@ -107,8 +108,129 @@ function openUsernameModal(currentUsername: string, onConfirm: (username: string
   document.addEventListener("keydown", onKeyDown);
 }
 
+function applyAuthenticatedInput(refs: LobbyRefs, username: string) {
+  refs.inputEl.value = username;
+  lobbyRuntime.isUserAuthenticated = true;
+  refs.inputEl.disabled = true;
+  refs.inputEl.style.opacity = "0.8";
+  refs.inputEl.style.cursor = "default";
+}
+
+function applyGuestInput(refs: LobbyRefs) {
+  refs.inputEl.value = getOrCreateGuestName();
+  lobbyRuntime.isUserAuthenticated = false;
+  lobbyRuntime.coins = null;
+  lobbyRuntime.ownedSkins = new Set();
+  refs.inputEl.disabled = false;
+  refs.inputEl.style.opacity = "1";
+  refs.inputEl.style.cursor = "text";
+}
+
+// Renders the top-bar user menu shared by all auth providers. Logout is optional because
+// CrazyGames sessions are owned by the platform and cannot be signed out from the game.
+function renderUserMenu(
+  refs: LobbyRefs,
+  username: string,
+  sendIntent: ((intent: any) => void) | undefined,
+  options: { onLogout?: () => void } = {}
+) {
+  const safeUsername = escapeHtml(username);
+
+  refs.topBarAuthContainer.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span id="user-coins-display" style="color:#facc15; font:600 14px system-ui; display:flex; align-items:center; gap:4px;">
+        ${lobbyRuntime.coins ?? 0} 🪙
+      </span>
+      <button id="user-menu-trigger" style="background:none; border:none; color:#38bdf8; font:600 14px system-ui; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 8px;">
+        ${safeUsername} ▾
+      </button>
+    </div>
+    <div id="auth-dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:6px; min-width:190px; box-shadow:0 4px 12px rgba(0,0,0,0.5); overflow:hidden;">
+      <button id="change-username-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
+        Change Username
+      </button>
+      <button id="settings-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
+        Settings
+      </button>
+      ${options.onLogout ? `
+      <button id="logout-btn" style="width:100%; text-align:left; background:none; border:none; color:#ef4444; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
+        Log Out
+      </button>` : ""}
+    </div>
+  `;
+
+  const trigger = refs.topBarAuthContainer.querySelector("#user-menu-trigger") as HTMLButtonElement;
+  const dropdown = refs.topBarAuthContainer.querySelector("#auth-dropdown") as HTMLDivElement;
+  const changeUsernameBtn = refs.topBarAuthContainer.querySelector("#change-username-btn") as HTMLButtonElement;
+  const settingsBtn = refs.topBarAuthContainer.querySelector("#settings-btn") as HTMLButtonElement;
+  const logoutBtn = refs.topBarAuthContainer.querySelector("#logout-btn") as HTMLButtonElement | null;
+
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
+  };
+
+  changeUsernameBtn.onmouseenter = () => {
+    changeUsernameBtn.style.background = "rgba(255, 255, 255, 0.08)";
+  };
+  changeUsernameBtn.onmouseleave = () => {
+    changeUsernameBtn.style.background = "none";
+  };
+
+  changeUsernameBtn.onclick = () => {
+    if (!sendIntent) return;
+
+    dropdown.style.display = "none";
+    const current = refs.inputEl.value;
+    openUsernameModal(current, (next) => {
+      sendIntent({ type: "CHANGE_USERNAME", username: next });
+    });
+  };
+
+  settingsBtn.onmouseenter = () => {
+    settingsBtn.style.background = "rgba(255, 255, 255, 0.08)";
+  };
+  settingsBtn.onmouseleave = () => {
+    settingsBtn.style.background = "none";
+  };
+
+  settingsBtn.onclick = () => {
+    dropdown.style.display = "none";
+    openSettingsModal();
+  };
+
+  if (logoutBtn && options.onLogout) {
+    const onLogout = options.onLogout;
+    logoutBtn.onmouseenter = () => {
+      logoutBtn.style.background = "rgba(239, 68, 68, 0.1)";
+    };
+    logoutBtn.onmouseleave = () => {
+      logoutBtn.style.background = "none";
+    };
+    logoutBtn.onclick = onLogout;
+  }
+}
+
 export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
   const refs = getLobbyRefs();
+
+  // CrazyGames environment: Google auth is never offered here. The player's identity comes
+  // from the CrazyGames SDK and is verified/linked to a Supabase account by the server.
+  // Players who are not logged in on CrazyGames simply continue as guests.
+  if (isCrazyGamesEnvironment()) {
+    const cgAuth = getCrazyGamesAuth();
+    if (!cgAuth) {
+      applyGuestInput(refs);
+      refs.topBarAuthContainer.innerHTML = "";
+      return;
+    }
+
+    const username = getCrazyGamesDisplayUsername() ?? cgAuth.username;
+    applyAuthenticatedInput(refs, username);
+    renderUserMenu(refs, username, sendIntent);
+    return;
+  }
+
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   // If user exists and token is valid
@@ -137,102 +259,22 @@ export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
       console.warn("Failed to fetch username from database. Using random guest name.");
     }
 
-    refs.inputEl.value = username;
-    lobbyRuntime.isUserAuthenticated = true;
-    refs.inputEl.disabled = true;
-    refs.inputEl.style.opacity = "0.8";
-    refs.inputEl.style.cursor = "default";
-
-    const safeUsername = escapeHtml(username);
-
-    refs.topBarAuthContainer.innerHTML = `
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span id="user-coins-display" style="color:#facc15; font:600 14px system-ui; display:flex; align-items:center; gap:4px;">
-          ${lobbyRuntime.coins ?? 0} 🪙
-        </span>
-        <button id="user-menu-trigger" style="background:none; border:none; color:#38bdf8; font:600 14px system-ui; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 8px;">
-          ${safeUsername} ▾
-        </button>
-      </div>
-      <div id="auth-dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:6px; min-width:190px; box-shadow:0 4px 12px rgba(0,0,0,0.5); overflow:hidden;">
-        <button id="change-username-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
-          Change Username
-        </button>
-        <button id="settings-btn" style="width:100%; text-align:left; background:none; border:none; color:#e2e8f0; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
-          Settings
-        </button>
-        <button id="logout-btn" style="width:100%; text-align:left; background:none; border:none; color:#ef4444; font:500 13px system-ui; padding:10px 12px; cursor:pointer; transition:background 0.2s;">
-          Log Out
-        </button>
-      </div>
-    `;
-
-    const trigger = refs.topBarAuthContainer.querySelector("#user-menu-trigger") as HTMLButtonElement;
-    const dropdown = refs.topBarAuthContainer.querySelector("#auth-dropdown") as HTMLDivElement;
-    const changeUsernameBtn = refs.topBarAuthContainer.querySelector("#change-username-btn") as HTMLButtonElement;
-    const settingsBtn = refs.topBarAuthContainer.querySelector("#settings-btn") as HTMLButtonElement;
-    const logoutBtn = refs.topBarAuthContainer.querySelector("#logout-btn") as HTMLButtonElement;
-
-    trigger.onclick = (e) => {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
-    };
-
-    changeUsernameBtn.onmouseenter = () => {
-      changeUsernameBtn.style.background = "rgba(255, 255, 255, 0.08)";
-    };
-    changeUsernameBtn.onmouseleave = () => {
-      changeUsernameBtn.style.background = "none";
-    };
-
-    changeUsernameBtn.onclick = () => {
-      if (!sendIntent) return;
-
-      dropdown.style.display = "none";
-      const current = refs.inputEl.value;
-      openUsernameModal(current, (next) => {
-        sendIntent({ type: "CHANGE_USERNAME", username: next });
-      });
-    };
-
-    settingsBtn.onmouseenter = () => {
-      settingsBtn.style.background = "rgba(255, 255, 255, 0.08)";
-    };
-    settingsBtn.onmouseleave = () => {
-      settingsBtn.style.background = "none";
-    };
-
-    settingsBtn.onclick = () => {
-      dropdown.style.display = "none";
-      openSettingsModal();
-    };
-
-    logoutBtn.onmouseenter = () => {
-      logoutBtn.style.background = "rgba(239, 68, 68, 0.1)";
-    };
-    logoutBtn.onmouseleave = () => {
-      logoutBtn.style.background = "none";
-    };
-
-    logoutBtn.onclick = async () => {
-      if (sendIntent) {
-        sendIntent({ type: "LOGOUT" });
-      }
-      await supabase.auth.signOut();
-      setupAuthAndUsername(sendIntent);
-    };
+    applyAuthenticatedInput(refs, username);
+    renderUserMenu(refs, username, sendIntent, {
+      onLogout: async () => {
+        if (sendIntent) {
+          sendIntent({ type: "LOGOUT" });
+        }
+        await supabase.auth.signOut();
+        setupAuthAndUsername(sendIntent);
+      },
+    });
 
     return;
   }
 
   // 2. FALLBACK: Unauthenticated state (Expired token, logged out, or no session)
-  refs.inputEl.value = getOrCreateGuestName();
-  lobbyRuntime.isUserAuthenticated = false;
-  lobbyRuntime.coins = null;
-  lobbyRuntime.ownedSkins = new Set();
-  refs.inputEl.disabled = false;
-  refs.inputEl.style.opacity = "1";
-  refs.inputEl.style.cursor = "text";
+  applyGuestInput(refs);
 
   refs.topBarAuthContainer.innerHTML = `
     <button id="top-google-login"

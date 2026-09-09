@@ -27,6 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { supabase } from './database/db.js';
+import { decodeCrazyGamesToken } from './util/crazyGamesAuth.js';
 import { privateRoomCodes, createPrivateRoom } from "./util/rooms.js";
 import { getNextAvailablePlayerColor } from "./util/playerColors.js";
 import { PlayerMatchStats } from "../../shared/gameTypes.js";
@@ -46,6 +47,7 @@ const server =app.listen(PORT, () => {
 type ClientMsg =
   | { type: "INTENT"; intent: any }
   | { type: "AUTH", token: string, }
+  | { type: "AUTH_CRAZYGAMES", token: string, }
   | { type: "PING"; t: number };
 
 export type ServerMsg =
@@ -168,6 +170,38 @@ const authSessions = new Map<PlayerId, AuthenticatedSession>();
 const rooms = new Map<RoomId, GameRoom>();
 let queueRoomId: RoomId;
 const playerRoom = new Map<PlayerId, RoomId>(); // player -> room
+
+// Shared tail of every auth flow (Google, CrazyGames): caches the session, rebinds
+// stats tracked before auth completed, applies the username and notifies the client.
+function completeAuthSession(ws: WebSocket, playerId: PlayerId, dbId: string, dbPlayer: { coins: number | null; username: string | null; owned_skins: unknown }) {
+  const profileUsername = typeof dbPlayer.username === "string" && dbPlayer.username.trim().length > 0
+    ? dbPlayer.username.trim()
+    : "Player";
+  const profileCoins = dbPlayer.coins || 0;
+  const profileOwnedSkins: string[] = Array.isArray(dbPlayer.owned_skins) ? dbPlayer.owned_skins : [];
+
+  authSessions.set(playerId, {
+    dbId,
+    coins: profileCoins,
+    lastSavedCoins: profileCoins,
+    username: profileUsername,
+    ownedSkins: profileOwnedSkins,
+  });
+
+  // if player joined room before auth was done
+  const rid = playerRoom.get(playerId);
+  if (rid) {
+    const room = rooms.get(rid);
+    const stats = room?.matchStats.get(playerId);
+    if (stats && stats.dbId.startsWith("guest-")) {
+      stats.dbId = dbId;
+    }
+  }
+
+  applyTrackedUsernameToActiveRoom(playerId, profileUsername);
+
+  ws.send(JSON.stringify({ type: "AUTH_SUCCESS", username: profileUsername, coins: profileCoins, ownedSkins: profileOwnedSkins }));
+}
 const sockets = new Map<PlayerId, WebSocket>();
 const socketLifetime = new Map<PlayerId, number>(); // player -> time when websocket was created
 const intentHistory = new Map<PlayerId, number[]>();
@@ -673,31 +707,80 @@ wss.on("connection", (ws, req) => {
         const profileUsername = typeof dbPlayer.username === "string" && dbPlayer.username.trim().length > 0
           ? dbPlayer.username.trim()
           : "Player";
-        const profileCoins = dbPlayer.coins || 0;
-        const profileOwnedSkins: string[] = Array.isArray(dbPlayer.owned_skins) ? dbPlayer.owned_skins : [];
+        completeAuthSession(ws, playerId, googleUID, dbPlayer);
+      } catch (err) {
+        ws.send(JSON.stringify({ type: "AUTH_FAILURE", reason: "Authentication failed." }));
+      }
+      return;
+    }
 
-        authSessions.set(playerId, {
-          dbId: googleUID,
-          coins: profileCoins,
-          lastSavedCoins: profileCoins,
-          username: profileUsername,
-          ownedSkins: profileOwnedSkins,
-        });
+    // CRAZYGAMES AUTH PROCESSING
+    if (msg.type === "AUTH_CRAZYGAMES") {
+      try {
+        // 1. Verify and decode CrazyGames JWT token
+        const claims = await decodeCrazyGamesToken(msg.token);
+        const crazyGamesId = claims.userId;
+        const cgUsername = claims.username.replace(/[^A-Za-z0-9._]/g, "").substring(0, 20) || "Player";
 
-        // if player joined room before auth was done
-        const rid = playerRoom.get(playerId);
-        if (rid) {
-          const room = rooms.get(rid);
-          const stats = room?.matchStats.get(playerId);
-          if (stats && stats.dbId.startsWith("guest-")) {
-            stats.dbId = googleUID;
+        // 2. Check if a player with this CrazyGames ID already exists in your table
+        let { data: dbPlayer } = await supabase
+          .from('players')
+          .select('id, coins, username, owned_skins')
+          .eq('crazygames_id', crazyGamesId)
+          .maybeSingle();
+
+        if (!dbPlayer) {
+          // 3. First-time user: Create Auth User in Supabase
+          // (Your DB trigger automatically runs after this line and creates the public.players & player_stats rows)
+          const { data: created, error: createError } = await supabase.auth.admin.createUser({
+            email: `cg-${crazyGamesId}@crazygames.ageofhexes.io`,
+            email_confirm: true,
+            user_metadata: {
+              provider: 'crazygames',
+              crazygames_id: crazyGamesId,
+              username: cgUsername,
+            },
+          });
+
+          if (createError || !created?.user) {
+            throw createError ?? new Error("Failed to create CrazyGames user in auth");
           }
+
+          const newUserId = created.user.id;
+
+          // 4. Resolve username conflicts before updating
+          let finalUsername = cgUsername;
+          const { data: existingName } = await supabase
+            .from('players')
+            .select('id')
+            .eq('username', finalUsername)
+            .maybeSingle();
+
+          if (existingName) {
+            // Name taken by a Google user or another CG user -> append random suffix
+            finalUsername = `${cgUsername.substring(0, 12)}_${Math.floor(1000 + Math.random() * 9000)}`;
+          }
+
+          // 5. UPDATE the row that was just auto-created by your Postgres trigger
+          const { data: updatedPlayer, error: updateError } = await supabase
+            .from('players')
+            .update({
+              crazygames_id: crazyGamesId,
+              username: finalUsername
+            })
+            .eq('id', newUserId)
+            .select('id, coins, username, owned_skins')
+            .single();
+
+          if (updateError) throw updateError;
+          dbPlayer = updatedPlayer;
         }
 
-        applyTrackedUsernameToActiveRoom(playerId, profileUsername);
-        
-        ws.send(JSON.stringify({ type: "AUTH_SUCCESS", username: profileUsername, coins: profileCoins, ownedSkins: profileOwnedSkins }));
+        // Auth succeeded!
+        completeAuthSession(ws, playerId, dbPlayer.id, dbPlayer);
+
       } catch (err) {
+        console.error("[CRAZYGAMES AUTH] Failed:", err);
         ws.send(JSON.stringify({ type: "AUTH_FAILURE", reason: "Authentication failed." }));
       }
       return;
@@ -708,8 +791,8 @@ wss.on("connection", (ws, req) => {
     const intent = msg.intent;
 
     if (intent.type === "JOIN_QUEUE") {
-      if (intent.username && intent.username.length > 15) {
-        intent.username = intent.username.substring(0, 15);
+      if (intent.username && intent.username.length > 20) {
+        intent.username = intent.username.substring(0, 20);
       }
       handleJoinQueue(playerId, intent.username, intent.skinId);
       return;
@@ -726,7 +809,7 @@ wss.on("connection", (ws, req) => {
       }
 
       const requested = typeof intent.username === "string" ? intent.username.trim() : "";
-      if (requested.length < 1 || requested.length > 15) {
+      if (requested.length < 1 || requested.length > 20) {
         socket.send(JSON.stringify({ type: "USERNAME_CHANGE_RESULT", success: false, reason: "INVALID_USERNAME" }));
         return;
       }
@@ -846,8 +929,8 @@ wss.on("connection", (ws, req) => {
     }
 
     if (intent.type === "CREATE_PRIVATE_ROOM") {
-      if (intent.username && intent.username.length > 15) {
-        intent.username = intent.username.substring(0, 15);
+      if (intent.username && intent.username.length > 20) {
+        intent.username = intent.username.substring(0, 20);
       }
       const mapId = typeof intent.mapId === "string"
         ? intent.mapId.trim().toLowerCase()
@@ -874,8 +957,8 @@ wss.on("connection", (ws, req) => {
     }
 
     if (intent.type === "JOIN_PRIVATE_ROOM") {
-      if (intent.username && intent.username.length > 15) {
-        intent.username = intent.username.substring(0, 15);
+      if (intent.username && intent.username.length > 20) {
+        intent.username = intent.username.substring(0, 20);
       }
       const result = handleJoinPrivateRoom(playerId, intent.username, intent.code, intent.skinId);
       if (!result.success) {

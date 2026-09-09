@@ -38,6 +38,7 @@ import { clearAbilityMode } from "./ui/abilityMode.js";
 import { clearSiegeAttackMode } from "./ui/siegeAttackMode.js";
 import { supabase, handleAuthPopupIfNeeded } from "./utils/db.js";
 import { initAntiMultiTab } from "./utils/antiMultiTab.js";
+import { initCrazyGames, isCrazyGamesEnvironment, getCrazyGamesAuth, setCrazyGamesServerUsername, clearCrazyGamesAuth } from "./utils/crazygames.js";
 import { setupAuthAndUsername, updateCoinsDisplay } from "./ui/lobby/auth.js";
 import { lobbyRuntime } from "./ui/lobby/state.js";
 import { showActionError } from "./ui/hud.js";
@@ -51,6 +52,10 @@ if (await handleAuthPopupIfNeeded()) {
 if (!(await initAntiMultiTab())) {
   throw new Error("Another AgeOfHexes tab is already running.");
 }
+
+// Initialize the CrazyGames SDK before connecting, so the welcome flow can authenticate
+// CrazyGames users instead of falling back to Google/Supabase auth.
+await initCrazyGames();
 
 let mouseDownPos: { x: number; y: number } | null = null;
 let didDrag = false;
@@ -84,11 +89,19 @@ const socket = connect(wsUrl, {
     clientNetState.playerId = id;
     clientNetState.lobby = { connected: 0, required: requiredPlayers, roomId, matchStartAt: null };
 
-    const { data: { session } } = await supabase.auth.getSession();
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
-    
-    if (session && session.access_token) {
-      tryAuth(session.access_token);
+
+    if (isCrazyGamesEnvironment()) {
+      // On CrazyGames the identity always comes from the CrazyGames SDK; never use Google auth.
+      const cgAuth = getCrazyGamesAuth();
+      if (cgAuth) {
+        tryCrazyGamesAuth(cgAuth.token);
+      }
+    } else {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.access_token) {
+        tryAuth(session.access_token);
+      }
     }
 
     scheduleLobbyUIUpdate();
@@ -122,6 +135,11 @@ const socket = connect(wsUrl, {
     if (username) {
       showSuccess(`Signed in as ${username}`);
     }
+    if (isCrazyGamesEnvironment()) {
+      // The server may have deduplicated the CrazyGames username; refresh the top bar with it.
+      setCrazyGamesServerUsername(username ?? null);
+      setupAuthAndUsername(sendIntent);
+    }
     if (typeof coins === "number") {
       updateCoinsDisplay(coins);
     }
@@ -131,6 +149,11 @@ const socket = connect(wsUrl, {
     scheduleLobbyUIUpdate();
   },
   onAuthFailure: (reason) => {
+    if (isCrazyGamesEnvironment()) {
+      // CrazyGames token was rejected - continue as a plain guest instead.
+      clearCrazyGamesAuth();
+      setupAuthAndUsername(sendIntent);
+    }
     showError(reason ?? "Authentication failed.");
   },
   onCoinsUpdate: (coins) => {
@@ -149,6 +172,9 @@ const socket = connect(wsUrl, {
   onUsernameChangeResult: async (msg) => {
     if (msg.success) {
       const nextUsername = msg.username ?? "your new name";
+      if (isCrazyGamesEnvironment()) {
+        setCrazyGamesServerUsername(msg.username ?? null);
+      }
       addGameLog(`Username changed to ${nextUsername}`, "#4ade80");
       showSuccess(`Username changed to ${nextUsername}`);
       await setupAuthAndUsername(sendIntent);
@@ -277,7 +303,7 @@ const socket = connect(wsUrl, {
   }
 });
 
-export const { sendIntent, tryAuth } = socket;
+export const { sendIntent, tryAuth, tryCrazyGamesAuth } = socket;
 
 // Switches the active server connection in place instead of reloading the page, which would
 // break the game when embedded in a sandboxed iframe (e.g. CrazyGames).

@@ -142,7 +142,7 @@ function getTooltipCostStyle() {
 }
 
 function getIconPath(itemType: string) {
-  return `/assets/${itemType.toLowerCase()}_icon.png`;
+  return `./assets/${itemType.toLowerCase()}_icon.png`;
 }
 
 function getIconCandidates(itemType: string) {
@@ -158,7 +158,7 @@ function getIconCandidates(itemType: string) {
     ...(aliases[base] ?? []),
   ];
 
-  return Array.from(new Set(names)).map(name => `/assets/${name}.png`);
+  return Array.from(new Set(names)).map(name => `./assets/${name}.png`);
 }
 
 function createIconButton(iconType: string, title: string) {

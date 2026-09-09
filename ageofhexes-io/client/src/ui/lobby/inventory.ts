@@ -20,7 +20,7 @@ export function renderInventory() {
       return `
       <button data-skin-id="${id}"
         style="aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border:1px solid ${isEquipped ? "#38bdf8" : "rgba(255,255,255,0.1)"}; border-radius:10px; cursor:pointer; color:white; font:600 12px system-ui; text-align:center;">
-        <img src="/skin_previews/${id}_preview.png" alt="${escapeHtml(item.name)}" style="width:70%; aspect-ratio:1; object-fit:cover; border-radius:8px;" />
+        <img src="./skin_previews/${id}_preview.png" alt="${escapeHtml(item.name)}" style="width:70%; aspect-ratio:1; object-fit:cover; border-radius:8px;" />
         <span>${escapeHtml(item.name)}</span>
         <span style="color:${isEquipped ? "#4ade80" : "#94a3b8"}; font-weight:700;">${isEquipped ? "Equipped" : "Equip"}</span>
       </button>
@@ -36,6 +36,6 @@ export function renderInventory() {
       renderInventory();
     });
     const skinId = btn.getAttribute("data-skin-id");
-    if (skinId) attachSkinPreviewHover(btn, `/skin_previews/${skinId}_preview.png`);
+    if (skinId) attachSkinPreviewHover(btn, `./skin_previews/${skinId}_preview.png`);
   });
 }

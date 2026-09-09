@@ -68,6 +68,7 @@ export type ServerMsg =
 type ClientMsg =
   | { type: "INTENT"; intent: any }
   | { type: "AUTH"; token: string }
+  | { type: "AUTH_CRAZYGAMES"; token: string }
   | { type: "PING"; t: number };
 
 const PING_INTERVAL_MS = 3000;
@@ -234,6 +235,13 @@ export function connect(url: string, handlers: {
     ws.send(JSON.stringify(out));
   }
 
+  // CrazyGames users authenticate with their CrazyGames user token instead of a Supabase JWT.
+  function tryCrazyGamesAuth(token: string) {
+    if (ws.readyState !== ws.OPEN) return;
+    const out: ClientMsg = { type: "AUTH_CRAZYGAMES", token };
+    ws.send(JSON.stringify(out));
+  }
+
   // Switches to a different server without a page reload; onclose triggers a reconnect against the new URL.
   function changeUrl(newUrl: string) {
     if (newUrl === currentUrl) return;
@@ -246,5 +254,5 @@ export function connect(url: string, handlers: {
     }
   }
 
-  return { sendIntent, tryAuth, changeUrl };
+  return { sendIntent, tryAuth, tryCrazyGamesAuth, changeUrl };
 }

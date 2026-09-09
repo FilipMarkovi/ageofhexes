@@ -520,7 +520,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
   setLobbyRefs(refs);
   setLobbyUIRefreshHandler(() => updateLobbyUI());
-  refs.inputEl.maxLength = 15;
+  refs.inputEl.maxLength = 20;
   attachNumberStepper(refs.maxPlayersInput, { min: MIN_PRIVATE_ROOM_PLAYERS, max: MAX_PRIVATE_ROOM_PLAYERS });
 
   refs.serverSelect.value = getSelectedServerId();

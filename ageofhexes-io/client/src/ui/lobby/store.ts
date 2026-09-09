@@ -63,7 +63,7 @@ export function renderStore() {
       return `
       <button data-skin-id="${id}" ${isOwned ? "disabled" : ""}
         style="aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; cursor:${isOwned ? "default" : "pointer"}; color:white; font:600 12px system-ui; text-align:center;">
-        <img src="/skin_previews/${id}_preview.png" alt="${escapeHtml(item.name)}" style="width:70%; aspect-ratio:1; object-fit:cover; border-radius:8px;" />
+        <img src="./skin_previews/${id}_preview.png" alt="${escapeHtml(item.name)}" style="width:70%; aspect-ratio:1; object-fit:cover; border-radius:8px;" />
         <span>${escapeHtml(item.name)}</span>
         <span style="color:${isOwned ? "#4ade80" : "#facc15"}; font-weight:700;">${isOwned ? "Owned" : `${item.price} 🪙`}</span>
       </button>
@@ -80,6 +80,6 @@ export function renderStore() {
       openPurchaseConfirmation(item.name, item.price, () => lobbyRuntime.buySkinHandler?.(skinId));
     });
     const skinId = btn.getAttribute("data-skin-id");
-    if (skinId) attachSkinPreviewHover(btn, `/skin_previews/${skinId}_preview.png`);
+    if (skinId) attachSkinPreviewHover(btn, `./skin_previews/${skinId}_preview.png`);
   });
 }
