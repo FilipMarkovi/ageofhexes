@@ -3,6 +3,7 @@ import { clientNetState } from "../state/clientState.js";
 import { clientUIState } from "../state/clientState.js";
 import { BASE_GOLD_MAX, BASE_ARMY_MAX, ARMY_CAP_PER_TILE, TICK_RATE, HOUSE_ARMY_CAP_BONUS} from "../../../shared/constants.js";
 import { myConTileCount } from "../main.js";
+import { getUiScale, registerUiRoot, getUiOffset } from "./scale.js";
 
 let lastArmy = 0;
 let lastGold = 0;
@@ -37,6 +38,7 @@ function ensureErrorExplainerElement() {
   errorExplainerEl.style.display = "none";
 
   document.body.appendChild(errorExplainerEl);
+  registerUiRoot(errorExplainerEl);
 }
 
 export function showActionError(message: string) {
@@ -87,6 +89,7 @@ export function initHudUI(sendIntent: (intent: any) => void) {
   };
 
   document.body.appendChild(surrenderBtnEl);
+  registerUiRoot(surrenderBtnEl);
 }
 
 // Helper for rounded rectangles (better aesthetics)
@@ -147,6 +150,11 @@ function drawStatBar(
 }
 
 export function drawHUD(ctx: CanvasRenderingContext2D) {
+  const uiScale = getUiScale();
+  ctx.save();
+  ctx.translate(8 * (1 - uiScale), 8 * (1 - uiScale));
+  ctx.scale(uiScale, uiScale);
+
   const state = clientNetState.state;
   const me = clientNetState.playerId ? state?.players.get(clientNetState.playerId) : null;
 
@@ -163,6 +171,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = "#fff";
     ctx.font = "14px sans-serif";
     ctx.fillText(`Connecting...`, 20, 30);
+    ctx.restore();
     return;
   }
 
@@ -207,6 +216,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D) {
 
   // 4. Gold Bar
   drawStatBar(ctx, 18, 65, me.gold, BASE_GOLD_MAX, "GOLD", "#eab308", displayedGoldGain);
+  ctx.restore();
 }
 
 export function drawTargetingHUD(ctx: CanvasRenderingContext2D) {
@@ -219,6 +229,10 @@ export function drawTargetingHUD(ctx: CanvasRenderingContext2D) {
   ctx.save();
 
   const pulse = 0.6 + Math.sin(Date.now() * 0.004) * 0.4;
+  const uiScale = getUiScale();
+  const uiOffset = getUiOffset(ctx.canvas);
+  ctx.translate(uiOffset.x, uiOffset.y);
+  ctx.scale(uiScale, uiScale);
 
   const titleText = building
     ? `🔨 CONSTRUCTING ${building}`
@@ -298,6 +312,11 @@ export function addGameLog(text: string, color: string = "#ffffff") {
 }
 
 export function drawGameLogs(ctx: CanvasRenderingContext2D) {
+  const uiScale = getUiScale();
+  const uiOffset = getUiOffset(ctx.canvas);
+  ctx.save();
+  ctx.translate(uiOffset.x, uiOffset.y);
+  ctx.scale(uiScale, uiScale);
   const now = Date.now();
   const startY = 120;
   const spacing = 28; // Increased spacing for a cleaner look
@@ -361,4 +380,6 @@ export function drawGameLogs(ctx: CanvasRenderingContext2D) {
 
     ctx.restore();
   }
+
+  ctx.restore();
 }

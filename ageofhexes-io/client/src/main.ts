@@ -25,13 +25,14 @@ import { initKeyboard } from "./input/keyboard.js";
 import { initBuildButtons, updateBuildButtons } from "./ui/buildButtons.js";
 import { getConnectedTilesFromHQ_Client } from "./utils/supply.js";
 import { drawTileInfo } from "./ui/tileInfo.js";
-import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI, showError, showSuccess } from "./ui/lobby/index.js";
+import { handleLobbyRouteState, handlePrivateLobbyUpdate, hideError, initLobbyUI, showError, showSuccess, updateLobbyUI } from "./ui/lobby/index.js";
 import { scheduleLobbyUIUpdate } from "./ui/lobby/state.js";
 import { maybeJoinPrivateRoute, setLobbyTopTab, syncRouteFromState } from "./ui/lobby/routes.js";
 import { setPrivateView } from "./ui/lobby/privateLobby.js";
 import { addGameLog, drawGameLogs, initHudUI } from "./ui/hud.js";
 import { loadGameTextures } from "./render/assetManager.js";
 import { drawProjectiles, enqueueProjectile } from "./render/projectiles.js";
+import { updateUiScale } from "./ui/scale.js";
 import { initPlacementTimerUI,updatePlacementTimerUI } from "./ui/placementTimer.js";
 import { initLatencyDisplay } from "./ui/latencyDisplay.js";
 import { clearAbilityMode } from "./ui/abilityMode.js";
@@ -56,6 +57,9 @@ if (!(await initAntiMultiTab())) {
 // Initialize the CrazyGames SDK before connecting, so the welcome flow can authenticate
 // CrazyGames users instead of falling back to Google/Supabase auth.
 const sdk = await initCrazyGames();
+if (sdk) {
+  sdk.game?.loadingStart();
+}
 
 let mouseDownPos: { x: number; y: number } | null = null;
 let didDrag = false;
@@ -354,6 +358,8 @@ initLatencyDisplay();
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  updateUiScale();
+  updateLobbyUI();
 }
 window.addEventListener("resize", resize);
 resize();

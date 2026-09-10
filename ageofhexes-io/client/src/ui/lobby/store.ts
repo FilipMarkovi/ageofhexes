@@ -1,6 +1,7 @@
 import { SKINS_CATALOG } from "../../../../shared/storeItems.js";
 import { attachSkinPreviewHover, escapeHtml } from "./helpers.js";
 import { getLobbyRefs, lobbyRuntime } from "./state.js";
+import { registerUiRoot } from "../scale.js";
 
 function openPurchaseConfirmation(itemName: string, price: number, onConfirm: () => void) {
   if (document.getElementById("store-purchase-confirmation-overlay")) {
@@ -44,6 +45,7 @@ function openPurchaseConfirmation(itemName: string, price: number, onConfirm: ()
   };
 
   document.body.appendChild(overlay);
+  registerUiRoot(overlay);
   document.addEventListener("keydown", onKeyDown);
 }
 

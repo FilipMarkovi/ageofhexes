@@ -1,5 +1,6 @@
 
 import type { CoreGameState } from "../../../shared/index.js";
+import { registerUiRoot } from "./scale.js";
 
 let timerRoot: HTMLDivElement;
 let timerTextEl: HTMLDivElement;
@@ -26,12 +27,13 @@ export function initPlacementTimerUI() {
   timerRoot.style.transition = "border-color 0.3s ease";
 
   timerRoot.innerHTML = `
-    <div id="timer-text" style="font:700 16px system-ui; letter-spacing: 0.5px; text-align: center; white-space: nowrap;">
+    <div id="timer-text" style="font:700 18px system-ui; letter-spacing: 0.5px; text-align: center; white-space: nowrap;">
       DEPLOY YOUR HQ (left-click)! Battle begins in: --s
     </div>
   `;
 
   document.body.appendChild(timerRoot);
+  registerUiRoot(timerRoot);
   timerTextEl = timerRoot.querySelector("#timer-text")!;
 }
 

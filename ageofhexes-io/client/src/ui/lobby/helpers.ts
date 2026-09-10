@@ -1,6 +1,7 @@
 import { PRIVATE_MAP_OPTIONS } from "./constants.js";
 import { EQUIPPED_SKIN_STORAGE_KEY, USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
 import { DEFAULT_SKIN_ID } from "../../../../shared/storeItems.js";
+import { registerUiRoot } from "../scale.js";
 
 export function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -50,6 +51,7 @@ function getSkinPreviewEl(): HTMLImageElement {
     skinPreviewEl.style.cssText =
       "position:fixed; z-index:200; pointer-events:none; width:220px; height:220px; object-fit:cover; border-radius:12px; border:2px solid rgba(56,189,248,0.5); box-shadow:0 20px 40px rgba(0,0,0,0.5); display:none;";
     document.body.appendChild(skinPreviewEl);
+    registerUiRoot(skinPreviewEl);
   }
   return skinPreviewEl;
 }

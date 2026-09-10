@@ -46,7 +46,7 @@ export const MINIMUM_SURVIVAL_TIME_FOR_COINS = 90; // in seconds
 // AI
 export const PIVOT_DIST = 4;
 export const STEEPNESS = 1.6;
-export const TIME_TO_AI_AUTOFILL = 5_000;
+export const TIME_TO_AI_AUTOFILL = 10_000;
 export const DEFAULT_BOT_AGGRESSION = 40;
 
 export const HQ_PLACEMENT_TIME_LIMIT = 15_000;

@@ -3,6 +3,7 @@ import { getOrCreateGuestName, escapeHtml } from "./helpers.js";
 import { getLobbyRefs, lobbyRuntime, type LobbyRefs } from "./state.js";
 import { openSettingsModal } from "./settingsModal.js";
 import { getCrazyGamesAuth, getCrazyGamesDisplayUsername, isCrazyGamesEnvironment } from "../../utils/crazygames.js";
+import { registerUiRoot } from "../scale.js";
 
 function openUsernameModal(currentUsername: string, onConfirm: (username: string) => void) {
   const existing = document.getElementById("lobby-username-modal-overlay");
@@ -46,6 +47,7 @@ function openUsernameModal(currentUsername: string, onConfirm: (username: string
   `;
 
   document.body.appendChild(overlay);
+  registerUiRoot(overlay);
 
   const input = overlay.querySelector("#lobby-username-modal-input") as HTMLInputElement;
   const errorEl = overlay.querySelector("#lobby-username-modal-error") as HTMLDivElement;
@@ -126,6 +128,64 @@ function applyGuestInput(refs: LobbyRefs) {
   refs.inputEl.style.cursor = "text";
 }
 
+const COINS_TOOLTIP_HTML = `
+  <div style="font:700 12px system-ui; color:#facc15; margin-bottom:6px;">How to earn coins</div>
+  <ul style="margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;">
+    <li>Requires surviving 90+ seconds in a PUBLIC match to earn coins</li>
+    <li>10 coins for a win</li>
+    <li>3 coins for a loss</li>
+    <li>You must be signed in to earn coins</li>
+  </ul>
+`;
+
+// Wraps the coins indicator (and optional disclaimer) so hovering either shows an explainer tooltip.
+function buildCoinsSectionMarkup(authed: boolean): string {
+  const coinsValue = authed ? lobbyRuntime.coins ?? 0 : 0;
+  const disclaimer = authed
+    ? ""
+    : `<span id="coins-disclaimer" style="color:#94a3b8; font:500 10px system-ui;">(sign in to earn)</span>`;
+
+  return `
+    <div id="coins-wrapper" style="position:relative; display:flex; align-items:center; gap:4px; cursor:help;">
+      <span id="user-coins-display" style="color:#facc15; font:600 14px system-ui; display:flex; align-items:center; gap:4px;">
+        ${coinsValue} 🪙
+      </span>
+      ${disclaimer}
+    </div>
+  `;
+}
+
+function attachCoinsTooltip(container: ParentNode) {
+  const wrapperEl = container.querySelector("#coins-wrapper") as HTMLDivElement | null;
+  if (!wrapperEl) return;
+
+  let tooltipEl: HTMLDivElement | null = null;
+
+  wrapperEl.onmouseenter = () => {
+    tooltipEl = document.createElement("div");
+    tooltipEl.innerHTML = COINS_TOOLTIP_HTML;
+    tooltipEl.style.position = "absolute";
+    tooltipEl.style.top = "calc(100% + 8px)";
+    tooltipEl.style.right = "0";
+    tooltipEl.style.width = "220px";
+    tooltipEl.style.padding = "10px 12px";
+    tooltipEl.style.background = "#1e293b";
+    tooltipEl.style.border = "1px solid rgba(255,255,255,0.15)";
+    tooltipEl.style.borderRadius = "8px";
+    tooltipEl.style.color = "#e2e8f0";
+    tooltipEl.style.font = "500 12px system-ui";
+    tooltipEl.style.lineHeight = "1.4";
+    tooltipEl.style.boxShadow = "0 8px 20px rgba(0,0,0,0.5)";
+    tooltipEl.style.zIndex = "80";
+    tooltipEl.style.pointerEvents = "none";
+    wrapperEl.appendChild(tooltipEl);
+  };
+  wrapperEl.onmouseleave = () => {
+    tooltipEl?.remove();
+    tooltipEl = null;
+  };
+}
+
 // Renders the top-bar user menu shared by all auth providers. Logout is optional because
 // CrazyGames sessions are owned by the platform and cannot be signed out from the game.
 function renderUserMenu(
@@ -138,9 +198,7 @@ function renderUserMenu(
 
   refs.topBarAuthContainer.innerHTML = `
     <div style="display:flex; align-items:center; gap:10px;">
-      <span id="user-coins-display" style="color:#facc15; font:600 14px system-ui; display:flex; align-items:center; gap:4px;">
-        ${lobbyRuntime.coins ?? 0} 🪙
-      </span>
+      ${buildCoinsSectionMarkup(true)}
       <button id="user-menu-trigger" style="background:none; border:none; color:#38bdf8; font:600 14px system-ui; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 8px;">
         ${safeUsername} ▾
       </button>
@@ -159,6 +217,8 @@ function renderUserMenu(
       </button>` : ""}
     </div>
   `;
+
+  attachCoinsTooltip(refs.topBarAuthContainer);
 
   const trigger = refs.topBarAuthContainer.querySelector("#user-menu-trigger") as HTMLButtonElement;
   const dropdown = refs.topBarAuthContainer.querySelector("#auth-dropdown") as HTMLDivElement;
@@ -224,7 +284,8 @@ export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
     const cgAuth = getCrazyGamesAuth();
     if (!cgAuth) {
       applyGuestInput(refs);
-      refs.topBarAuthContainer.innerHTML = "";
+      refs.topBarAuthContainer.innerHTML = buildCoinsSectionMarkup(false);
+      attachCoinsTooltip(refs.topBarAuthContainer);
       return;
     }
 
@@ -281,17 +342,22 @@ export async function setupAuthAndUsername(sendIntent?: (intent: any) => void) {
   applyGuestInput(refs);
 
   refs.topBarAuthContainer.innerHTML = `
-    <button id="top-google-login"
-      style="padding:6px 12px;border-radius:8px;border:none;background:#4285F4;color:white;cursor:pointer;font:600 13px system-ui;display:flex;align-items:center;gap:6px;transition: background 0.2s;">
-      <svg width="14" height="14" viewBox="0 0 18 18" style="display:block;">
-        <path fill="#FFF" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.91c1.7-1.56 2.69-3.86 2.69-6.6z" />
-        <path fill="#FFF" d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.91-2.26c-.8.54-1.85.86-3.05.86-2.34 0-4.33-1.58-5.04-3.7H.94v2.33A9 9 0 0 0 9 18z" />
-        <path fill="#FFF" d="M3.96 10.7a5.4 5.4 0 0 1 0-3.4V4.97H.94a9 9 0 0 0 0 8.06l3.02-2.33z" />
-        <path fill="#FFF" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.1A9 9 0 0 0 .94 4.97l3.02 2.33C4.67 5.16 6.66 3.58 9 3.58z" />
-      </svg>
-      Sign in with Google
-    </button>
+    <div style="display:flex; align-items:center; gap:10px;">
+      ${buildCoinsSectionMarkup(false)}
+      <button id="top-google-login"
+        style="padding:6px 12px;border-radius:8px;border:none;background:#4285F4;color:white;cursor:pointer;font:600 13px system-ui;display:flex;align-items:center;gap:6px;transition: background 0.2s;">
+        <svg width="14" height="14" viewBox="0 0 18 18" style="display:block;">
+          <path fill="#FFF" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.91c1.7-1.56 2.69-3.86 2.69-6.6z" />
+          <path fill="#FFF" d="M9 18c2.43 0 4.47-.8 5.96-2.2l-2.91-2.26c-.8.54-1.85.86-3.05.86-2.34 0-4.33-1.58-5.04-3.7H.94v2.33A9 9 0 0 0 9 18z" />
+          <path fill="#FFF" d="M3.96 10.7a5.4 5.4 0 0 1 0-3.4V4.97H.94a9 9 0 0 0 0 8.06l3.02-2.33z" />
+          <path fill="#FFF" d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.1A9 9 0 0 0 .94 4.97l3.02 2.33C4.67 5.16 6.66 3.58 9 3.58z" />
+        </svg>
+        Sign in with Google
+      </button>
+    </div>
   `;
+
+  attachCoinsTooltip(refs.topBarAuthContainer);
 
   const topGoogleBtn = refs.topBarAuthContainer.querySelector("#top-google-login") as HTMLButtonElement;
   topGoogleBtn.onclick = () => {

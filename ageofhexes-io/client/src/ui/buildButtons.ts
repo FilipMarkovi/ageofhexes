@@ -6,6 +6,7 @@ import { toggleBuildMode } from "./buildMode.js";
 import { toggleAbilityMode } from "./abilityMode.js";
 import { toggleSiegeAttackMode } from "./siegeAttackMode.js";
 import { loadSettings, onSettingsChanged, type Keybinds } from "../input/settings.js";
+import { registerUiRoot } from "./scale.js";
 
 let keybinds: Keybinds = loadSettings().keybinds;
 onSettingsChanged((settings) => { keybinds = settings.keybinds; });
@@ -338,6 +339,7 @@ function createMenuGroup(key: MenuGroupKey, bottomPx: number, label: string) {
   root.appendChild(toggle);
   root.appendChild(panel);
   document.body.appendChild(root);
+  registerUiRoot(root);
 
   menuGroups.set(key, { root, toggle, panel });
   return panel;
@@ -370,6 +372,7 @@ export function initBuildButtons() {
     boxShadow: "0 10px 25px rgba(0, 0, 0, 0.45)",
   });
   document.body.appendChild(tooltip);
+  registerUiRoot(tooltip);
 
   // --- GENERATE BUILD BUTTONS ---
   for (const d of defs) {

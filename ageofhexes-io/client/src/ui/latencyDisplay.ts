@@ -1,4 +1,5 @@
 import { clientNetState } from "../state/clientState.js";
+import { registerUiRoot } from "./scale.js";
 
 const UPDATE_INTERVAL_MS = 500;
 
@@ -22,6 +23,7 @@ function ensureElement(): HTMLDivElement {
   el.style.pointerEvents = "none";
   el.style.display = "none";
   document.body.appendChild(el);
+  registerUiRoot(el);
   return el;
 }
 

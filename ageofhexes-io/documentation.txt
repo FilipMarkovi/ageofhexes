@@ -124,3 +124,6 @@ that reacts to mouse movement
 inventory to see larger skin preview image, removed default arrows look on numerical
 increase/decrease elements, added special effects for special attack hits, fix private
 room creation error right after playing a regular match, allow crazygames iframe
+--------------------------
+10.9.2026. - minor UI design changes in the lobby, increaste autofill timer for public
+match to 10 seconds, add hover box for coins explaining how to earn them

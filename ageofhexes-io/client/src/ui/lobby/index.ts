@@ -17,6 +17,7 @@ import { SERVER_OPTIONS, getSelectedServerId, setSelectedServerId } from "../../
 import { initLobbyHexBackground, setLobbyHexBackgroundVisible } from "./hexBackground.js";
 import { attachNumberStepper } from "./helpers.js";
 import { switchServer } from "../../main.js";
+import { registerUiRoot } from "../scale.js";
 
 let notificationTimer: number | null = null;
 let lobbyCountdownIntervalId: number | null = null;
@@ -49,6 +50,7 @@ function createIntroLoadingScreen() {
 
   loadingScreenRoot.innerHTML = '<div style="font:700 64px system-ui; letter-spacing: 2px; text-transform: uppercase;">Age of Hexes</div>';
   document.body.appendChild(loadingScreenRoot);
+  registerUiRoot(loadingScreenRoot);
 
   setTimeout(() => {
     loadingScreenRoot.style.opacity = "0";
@@ -68,17 +70,17 @@ function createLobbyMarkup(): string {
         style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#0f172a;color:white;min-width:260px;text-align:center;font-weight:600; width:100%; max-width:320px; box-sizing:border-box;" />
 
       <div id="main-lobby-view" style="display:flex; flex-direction:column; gap:8px; width:100%; max-width:320px;">
-        <button id="play"
+        <button id="play" class="lobby-hover-btn"
           style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#2563eb;color:white;cursor:pointer;width:100%;font-weight:600;font-size:15px;">
           Quick Play
         </button>
 
         <div style="display:flex; gap:8px;">
-          <button id="btn-show-create"
+          <button id="btn-show-create" class="lobby-hover-btn"
             style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; cursor:pointer; font-weight:600; font-size:12px;">
             Host Room
           </button>
-          <button id="btn-show-join"
+          <button id="btn-show-join" class="lobby-hover-btn"
             style="flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; cursor:pointer; font-weight:600; font-size:12px;">
             Join Code
           </button>
@@ -107,12 +109,12 @@ function createLobbyMarkup(): string {
         Fill empty slots with bots
       </label>
 
-      <button id="btn-confirm-create"
+      <button id="btn-confirm-create" class="lobby-hover-btn"
         style="padding:9px; border-radius:8px; border:none; background:#16a34a; color:white; cursor:pointer; font-weight:600; font-size:13px;">
         Create Room
       </button>
-      <button id="btn-cancel-create"
-        style="padding:6px; border-radius:8px; border:none; background:transparent; color:#94a3b8; cursor:pointer; font:12px system-ui;">
+      <button id="btn-cancel-create" class="lobby-hover-btn"
+        style="padding:8px; border-radius:8px; border:1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.1); color:#fca5a5; cursor:pointer; font-weight:600; font-size:12px;">
         Cancel
       </button>
       </div>
@@ -125,12 +127,12 @@ function createLobbyMarkup(): string {
         maxlength="${ROOM_CODE_LENGTH}"
         style="padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:#1e293b; color:white; text-align:center; font:700 16px monospace; text-transform:uppercase; letter-spacing:2px;" />
 
-      <button id="btn-confirm-join"
+      <button id="btn-confirm-join" class="lobby-hover-btn"
         style="padding:9px; border-radius:8px; border:none; background:#2563eb; color:white; cursor:pointer; font-weight:600; font-size:13px;">
         Join Room
       </button>
-      <button id="btn-cancel-join"
-        style="padding:6px; border-radius:8px; border:none; background:transparent; color:#94a3b8; cursor:pointer; font:12px system-ui;">
+      <button id="btn-cancel-join" class="lobby-hover-btn"
+        style="padding:8px; border-radius:8px; border:1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.1); color:#fca5a5; cursor:pointer; font-weight:600; font-size:12px;">
         Cancel
       </button>
       </div>
@@ -140,7 +142,7 @@ function createLobbyMarkup(): string {
         <div style="font:500 12px system-ui; color:#94a3b8; letter-spacing:1px; text-transform:uppercase;">Room Code</div>
         <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:2px;">
           <h2 id="display-room-code" style="font:700 24px monospace; letter-spacing:3px; margin:0; color:#38bdf8;">${"-".repeat(ROOM_CODE_LENGTH)}</h2>
-          <button id="btn-copy-code" title="Copy Code" style="background:rgba(255,255,255,0.1); border:none; border-radius:6px; color:white; padding:4px 8px; cursor:pointer;">📋</button>
+          <button id="btn-copy-code" class="lobby-hover-btn" title="Copy Code" style="background:rgba(255,255,255,0.1); border:none; border-radius:6px; color:white; padding:4px 8px; cursor:pointer;">📋</button>
         </div>
       </div>
 
@@ -148,17 +150,21 @@ function createLobbyMarkup(): string {
         Bots: Auto-Fill
       </div>
 
+      <div style="font:11px system-ui; color:#64748b; text-align:center;">
+        Coins and stats are not tracked in private games.
+      </div>
+
       <div style="width:100%;">
         <div style="font:600 13px system-ui; color:#94a3b8; margin-bottom:6px;">Players</div>
         <ul id="private-player-list" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; max-height:120px; overflow-y:auto;"></ul>
       </div>
 
-      <button id="btn-start-private-match"
+      <button id="btn-start-private-match" class="lobby-hover-btn"
         style="padding:10px; border-radius:8px; border:none; background:#16a34a; color:white; cursor:pointer; font-weight:600; font-size:14px; display:none;">
         Start Game
       </button>
 
-      <button id="btn-leave-private"
+      <button id="btn-leave-private" class="lobby-hover-btn"
         style="padding:8px; border-radius:8px; border:1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.1); color:#fca5a5; cursor:pointer; font-weight:600; font-size:12px;">
         Leave Room
       </button>
@@ -263,6 +269,13 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   createIntroLoadingScreen();
   initLobbyHexBackground();
 
+  if (!document.getElementById("lobby-hover-style")) {
+    const hoverStyle = document.createElement("style");
+    hoverStyle.id = "lobby-hover-style";
+    hoverStyle.textContent = `.lobby-hover-btn { transition: filter 0.15s ease; } .lobby-hover-btn:hover { filter: brightness(0.85); }`;
+    document.head.appendChild(hoverStyle);
+  }
+
   const topBarRoot = document.createElement("div");
   topBarRoot.style.position = "absolute";
   topBarRoot.style.top = "0";
@@ -290,15 +303,16 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
       </a>
     </div>
     <div style="position: absolute; left: 50%; transform: translateX(-50%); display:flex; align-items:center; justify-content:center; gap:6px; padding:4px; border-radius:10px; background:rgba(255,255,255,0.05);">
-      <button id="top-tab-lobby" style="padding:7px 12px; border:none; border-radius:8px; background:rgba(37, 99, 235, 0.9); color:white; cursor:pointer; font:600 13px system-ui;">Lobby</button>
-      <button id="top-tab-leaderboard" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Leaderboard</button>
-      <button id="top-tab-store" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Store</button>
-      <button id="top-tab-inventory" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Inventory</button>
+      <button id="top-tab-lobby" class="lobby-hover-btn" style="padding:7px 12px; border:none; border-radius:8px; background:rgba(37, 99, 235, 0.9); color:white; cursor:pointer; font:600 13px system-ui;">Lobby</button>
+      <button id="top-tab-leaderboard" class="lobby-hover-btn" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Leaderboard</button>
+      <button id="top-tab-store" class="lobby-hover-btn" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Store</button>
+      <button id="top-tab-inventory" class="lobby-hover-btn" style="padding:7px 12px; border:none; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; font:600 13px system-ui;">Inventory</button>
     </div>
     <div id="top-bar-auth" style="position: relative;"></div>
   `;
 
   document.body.appendChild(topBarRoot);
+  registerUiRoot(topBarRoot);
   const topBarAuthContainer = topBarRoot.querySelector("#top-bar-auth") as HTMLDivElement;
 
   const serverSelectRoot = document.createElement("div");
@@ -317,6 +331,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     </select>
   `;
   document.body.appendChild(serverSelectRoot);
+  registerUiRoot(serverSelectRoot);
 
   const notificationEl = document.createElement("div");
   notificationEl.style.position = "absolute";
@@ -338,6 +353,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   notificationEl.style.pointerEvents = "none";
   notificationEl.style.zIndex = "70";
   document.body.appendChild(notificationEl);
+  registerUiRoot(notificationEl);
 
   const lobbyRoot = document.createElement("div");
   lobbyRoot.style.position = "absolute";
@@ -352,6 +368,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   lobbyRoot.style.zIndex = "50";
   lobbyRoot.innerHTML = createLobbyMarkup();
   document.body.appendChild(lobbyRoot);
+  registerUiRoot(lobbyRoot);
 
   const returnRoot = document.createElement("div");
   returnRoot.style.position = "absolute";
@@ -471,6 +488,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   returnRoot.appendChild(expandedResultsSection);
   returnRoot.appendChild(collapsedResultsSection);
   document.body.appendChild(returnRoot);
+  registerUiRoot(returnRoot);
 
   const refs = {
     topBarRoot,

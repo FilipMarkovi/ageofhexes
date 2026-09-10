@@ -2,6 +2,7 @@ import type { CoreGameState, PlayerEffect, TileEffect, TileState } from "../../.
 import { DEFEND_COST_RATIO, DEFENSE_HEAT_DECAY_MS, DEFENSE_COST_INCREMENT } from "../../../shared/constants.js";
 import { getServerNow } from "../utils/time.js";
 import { connectedByPlayer } from "../main.js";
+import { getUiLayoutWidth, getUiScale } from "./scale.js";
 
 export function drawTileInfo(
   ctx: CanvasRenderingContext2D,
@@ -10,12 +11,20 @@ export function drawTileInfo(
   me: string
 ) {
   ctx.save();
+  const uiScale = getUiScale();
+  const rightMargin = 20;
+  const uiLayoutWidth = getUiLayoutWidth();
+  ctx.translate(
+    ctx.canvas.width - rightMargin - uiScale * (uiLayoutWidth - rightMargin),
+    20 * (1 - uiScale)
+  );
+  ctx.scale(uiScale, uiScale);
   const now = getServerNow();
 
   const width = 240; // Widened slightly to give badges more room
   const padding = 16;
   const lineHeight = 22;
-  const x = ctx.canvas.width - width - 20;
+  const x = uiLayoutWidth - width - rightMargin;
   
   let currentY = 20; // Keeps track of vertical stacking
 
