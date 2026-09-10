@@ -116,6 +116,9 @@ const socket = connect(wsUrl, {
       clientNetState.isReturningToLobby = false;
       clientNetState.state = null;
       clientUIState.phase = "LOBBY";
+      if (sdk) {
+        sdk?.game?.gameplayStop();
+      }
     }
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
     scheduleLobbyUIUpdate();

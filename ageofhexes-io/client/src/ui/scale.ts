@@ -1,6 +1,6 @@
 const BASE_WIDTH = 1400;
 const BASE_HEIGHT = 800;
-const MIN_UI_SCALE = 0.5;
+const MIN_UI_SCALE = 0.7;
 
 let uiScale = 1;
 const uiRoots = new Set<HTMLElement>();
