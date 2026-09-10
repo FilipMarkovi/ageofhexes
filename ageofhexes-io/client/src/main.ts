@@ -55,7 +55,7 @@ if (!(await initAntiMultiTab())) {
 
 // Initialize the CrazyGames SDK before connecting, so the welcome flow can authenticate
 // CrazyGames users instead of falling back to Google/Supabase auth.
-await initCrazyGames();
+const sdk = await initCrazyGames();
 
 let mouseDownPos: { x: number; y: number } | null = null;
 let didDrag = false;
@@ -221,7 +221,7 @@ const socket = connect(wsUrl, {
     if (clientNetState.isReturningToLobby) {
       return;
     }
-
+    const prevPhase = clientUIState.phase;
     clientNetState.state = state;
 
     if (!hasCenteredCamera && state.tiles.size > 0) {
@@ -290,6 +290,14 @@ const socket = connect(wsUrl, {
       clientUIState.phase = "QUEUED";
     } else {
       clientUIState.phase = "LOBBY";
+    }
+
+    if (sdk) {
+      if (me?.status === "PLAYING" && prevPhase !== "PLAYING") {
+        sdk?.game?.gameplayStart();
+      } else if (prevPhase === "PLAYING" && me?.status !== "PLAYING") {
+        sdk?.game?.gameplayStop();
+      }
     }
 
     if (!state.started) {
@@ -789,4 +797,7 @@ function loop() {
   drawGameLogs(ctx);
 }
 
+if (sdk) {
+  sdk.game?.loadingStop();
+}
 loop();

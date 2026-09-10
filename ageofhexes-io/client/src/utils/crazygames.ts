@@ -58,7 +58,7 @@ function loadCrazyGamesScript(): Promise<void> {
   });
 }
 
-export async function initCrazyGames(): Promise<void> {
+export async function initCrazyGames(): Promise<CrazyGamesSdk | undefined> {
   if (initialized) return;
   initialized = true;
 
@@ -87,19 +87,20 @@ export async function initCrazyGames(): Promise<void> {
   if (environment !== "crazygames") return;
 
   try {
-    if (!sdk.user.isUserAccountAvailable) return;
-
-    const user = await sdk.user.getUser();
-    if (!user) return; // not logged in on CrazyGames -> continue as guest
-
-    const token = await sdk.user.getUserToken();
-    currentUser = user;
-    currentToken = token;
+    if (sdk.user.isUserAccountAvailable) {
+      const user = await sdk.user.getUser();
+      if (user) {
+        currentUser = user;
+        currentToken = await sdk.user.getUserToken();
+      }
+    }
   } catch (err) {
     console.warn("[CrazyGames] Failed to resolve user:", err);
     currentUser = null;
     currentToken = null;
   }
+
+  return sdk;
 }
 
 export function isCrazyGamesEnvironment(): boolean {
