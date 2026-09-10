@@ -10,6 +10,11 @@ export interface LeaderboardEntry {
   score: number;
 }
 
+export interface UserRankData {
+  rank: number;
+  score: number;
+}
+
 export interface PrivateLobbyUpdateMessage {
   roomId: string;
   code: string;

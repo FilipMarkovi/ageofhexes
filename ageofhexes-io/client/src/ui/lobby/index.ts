@@ -570,8 +570,9 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
     lobbyRuntime.isAuthResolved = true;
     maybeJoinPrivateRoute({ sendIntent, hideError, showError });
     scheduleLobbyUIUpdate();
+    fetchLeaderboard(lobbyRuntime.currentLeaderboardTab, refs.inputEl.value.trim() || undefined);
   });
-  fetchLeaderboard("wins");
+  fetchLeaderboard("wins", refs.inputEl.value.trim() || undefined);
   setBuySkinHandler((skinId) => sendIntent({ type: "BUY_SKIN", skinId }));
   renderStore();
   renderInventory();
@@ -579,7 +580,7 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   refs.leaderboardTabsEl.querySelectorAll("button").forEach((btn) => {
     btn.onclick = () => {
       const cat = btn.getAttribute("data-cat") as LeaderboardCategory;
-      if (cat) fetchLeaderboard(cat);
+      if (cat) fetchLeaderboard(cat, refs.inputEl.value.trim() || undefined);
     };
   });
 

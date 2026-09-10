@@ -372,7 +372,8 @@ export function initBuildButtons() {
     boxShadow: "0 10px 25px rgba(0, 0, 0, 0.45)",
   });
   document.body.appendChild(tooltip);
-  registerUiRoot(tooltip);
+  // Not registered as a UI root: its position is computed in real viewport pixels
+  // below, and applying the game's UI zoom on top of that would double-scale it.
 
   // --- GENERATE BUILD BUTTONS ---
   for (const d of defs) {

@@ -1,7 +1,6 @@
 import { PRIVATE_MAP_OPTIONS } from "./constants.js";
 import { EQUIPPED_SKIN_STORAGE_KEY, USERNAME_STORAGE_KEY } from "../../../../shared/index.js";
 import { DEFAULT_SKIN_ID } from "../../../../shared/storeItems.js";
-import { registerUiRoot } from "../scale.js";
 
 export function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -44,41 +43,51 @@ export function setEquippedSkin(skinId: string): void {
 }
 
 let skinPreviewEl: HTMLImageElement | null = null;
+const SKIN_PREVIEW_SIZE = 220;
 
 function getSkinPreviewEl(): HTMLImageElement {
   if (!skinPreviewEl) {
     skinPreviewEl = document.createElement("img");
+    // Not registered as a UI root: its position is computed in real viewport
+    // pixels below, and applying the game's UI zoom on top would double-scale it.
     skinPreviewEl.style.cssText =
-      "position:fixed; z-index:200; pointer-events:none; width:220px; height:220px; object-fit:cover; border-radius:12px; border:2px solid rgba(56,189,248,0.5); box-shadow:0 20px 40px rgba(0,0,0,0.5); display:none;";
+      `position:fixed; z-index:200; pointer-events:none; width:${SKIN_PREVIEW_SIZE}px; height:${SKIN_PREVIEW_SIZE}px; object-fit:cover; border-radius:12px; border:2px solid rgba(56,189,248,0.5); box-shadow:0 20px 40px rgba(0,0,0,0.5); display:none;`;
     document.body.appendChild(skinPreviewEl);
-    registerUiRoot(skinPreviewEl);
   }
   return skinPreviewEl;
 }
 
 // Shows an enlarged version of a skin's preview image while the mouse hovers over an element.
+// Always anchored to the right of the hovered element, falling back to the left only if it
+// wouldn't otherwise fit on screen.
 export function attachSkinPreviewHover(el: HTMLElement, previewSrc: string): void {
   const preview = () => getSkinPreviewEl();
 
-  const positionPreview = (event: MouseEvent) => {
+  const positionPreview = () => {
     const img = preview();
     const margin = 16;
     const rect = el.getBoundingClientRect();
+
     let left = rect.right + margin;
+    if (left + SKIN_PREVIEW_SIZE + margin > window.innerWidth) {
+      left = rect.left - margin - SKIN_PREVIEW_SIZE;
+    }
+    left = Math.max(margin, Math.min(left, window.innerWidth - SKIN_PREVIEW_SIZE - margin));
+
     let top = rect.top;
-    if (left + 220 > window.innerWidth) left = rect.left - margin - 220;
-    if (top + 220 > window.innerHeight) top = window.innerHeight - margin - 220;
-    img.style.left = `${Math.max(margin, left)}px`;
-    img.style.top = `${Math.max(margin, top)}px`;
+    top = Math.max(margin, Math.min(top, window.innerHeight - SKIN_PREVIEW_SIZE - margin));
+
+    img.style.left = `${left}px`;
+    img.style.top = `${top}px`;
   };
 
-  el.addEventListener("mouseenter", (event) => {
+  el.addEventListener("mouseenter", () => {
     const img = preview();
     img.src = previewSrc;
     img.style.display = "block";
-    positionPreview(event as MouseEvent);
+    positionPreview();
   });
-  el.addEventListener("mousemove", (event) => positionPreview(event as MouseEvent));
+  el.addEventListener("mousemove", positionPreview);
   el.addEventListener("mouseleave", () => {
     preview().style.display = "none";
   });
