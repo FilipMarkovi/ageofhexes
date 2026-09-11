@@ -96,7 +96,7 @@ export function renderLeaderboard(data: LeaderboardEntry[], currentUsername?: st
     .map((entry, i) => {
       const isMe = canHighlight && entry.username.toLowerCase() === normalizedUsername;
       return `
-      <li style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:${isMe ? "rgba(56,189,248,0.18)" : "rgba(255,255,255,0.05)"}; border:1px solid ${isMe ? "rgba(56,189,248,0.5)" : "transparent"}; border-radius:10px; font: 500 14px system-ui;">
+      <li style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; margin-bottom:4px; background:${isMe ? "rgba(56,189,248,0.18)" : "rgba(255,255,255,0.05)"}; border:1px solid ${isMe ? "rgba(56,189,248,0.5)" : "rgba(255,255,255,0.1)"}; border-radius:10px; font: 500 14px system-ui;">
         <span style="color:#94a3b8; width: 28px; font-weight: 700;">${i + 1}.</span>
         <span style="flex:1; color:${isMe ? "#38bdf8" : "white"}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 12px;">${escapeHtml(entry.username)}${isMe ? " (you)" : ""}</span>
         <span style="font-weight:700; color:#38bdf8; font-size:15px;">${entry.score.toLocaleString()}</span>
@@ -109,7 +109,7 @@ export function renderLeaderboard(data: LeaderboardEntry[], currentUsername?: st
   if (!isInTop10 && canHighlight && userRankData) {
     footerHtml = `
       <div style="text-align:center; padding:6px 0; color:#475569; font:600 12px system-ui; letter-spacing:3px;">• • •</div>
-      <li style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(56,189,248,0.18); border:1px solid rgba(56,189,248,0.5); border-radius:10px; font: 500 14px system-ui;">
+      <li style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; margin-bottom:4px; background:rgba(56,189,248,0.18); border:1px solid rgba(56,189,248,0.5); border-radius:10px; font: 500 14px system-ui;">
         <span style="color:#38bdf8; width: 28px; font-weight: 700;">#${userRankData.rank}</span>
         <span style="flex:1; color:#38bdf8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 12px;">${escapeHtml(currentUsername!)} (you)</span>
         <span style="font-weight:700; color:#38bdf8; font-size:15px;">${userRankData.score.toLocaleString()}</span>

@@ -1,12 +1,13 @@
 const BASE_WIDTH = 1400;
 const BASE_HEIGHT = 800;
 const MIN_UI_SCALE = 0.7;
+const MAX_UI_SCALE = 1.5;
 
 let uiScale = 1;
 const uiRoots = new Set<HTMLElement>();
 
 function calculateUiScale(): number {
-  return Math.max(MIN_UI_SCALE, Math.min(window.innerWidth / BASE_WIDTH, window.innerHeight / BASE_HEIGHT));
+  return Math.max(MIN_UI_SCALE, Math.min(window.innerWidth / BASE_WIDTH, window.innerHeight / BASE_HEIGHT, MAX_UI_SCALE));
 }
 
 function applyUiScale(root: HTMLElement): void {

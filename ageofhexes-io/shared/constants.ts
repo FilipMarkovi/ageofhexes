@@ -39,7 +39,7 @@ export const EFFECT_STRENGTHS = {
 };
 
 export const SPECIAL_ATTACK_COSTS = {
-  BOMBARD: 45 * GOLD_SCALE,
+  BOMBARD: 50 * GOLD_SCALE,
   PLAGUE_BOMB: 40 * GOLD_SCALE,
 } as const;
 

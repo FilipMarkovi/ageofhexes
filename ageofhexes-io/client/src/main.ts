@@ -43,7 +43,7 @@ import { initCrazyGames, isCrazyGamesEnvironment, getCrazyGamesAuth, setCrazyGam
 import { setupAuthAndUsername, updateCoinsDisplay } from "./ui/lobby/auth.js";
 import { lobbyRuntime } from "./ui/lobby/state.js";
 import { showActionError } from "./ui/hud.js";
-import { getSelectedServerHost } from "./constants/servers.js";
+import { getSelectedServerHostAsync } from "./constants/servers.js";
 import { loadSettings, onSettingsChanged } from "./input/settings.js";
 
 if (await handleAuthPopupIfNeeded()) {
@@ -73,7 +73,7 @@ const DRAG_THRESHOLD = 14; // pixels
 
 const backendHost = window.location.hostname === "localhost"
   ? "localhost:6767"
-  : getSelectedServerHost();
+  : await getSelectedServerHostAsync();
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const wsUrl = `${protocol}//${backendHost}`;

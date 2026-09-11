@@ -551,13 +551,15 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
   if (lobbyCountdownIntervalId !== null) {
     window.clearInterval(lobbyCountdownIntervalId);
   }
+  // Poll faster than 1s so the displayed second ticks down as soon as it changes
+  // instead of drifting/stalling from a 1s interval that isn't aligned to real second boundaries.
   lobbyCountdownIntervalId = window.setInterval(() => {
     const hasMatchStartTimer = getValidMatchStartAt(clientNetState.lobby.matchStartAt) !== null;
     const inLobbyPhase = clientUIState.phase === "LOBBY" || clientUIState.phase === "QUEUED";
     if (hasMatchStartTimer && inLobbyPhase) {
       scheduleLobbyUIUpdate();
     }
-  }, 1000);
+  }, 200);
 
   initLobbyRouting({ sendIntent, hideError, showError });
 
@@ -730,11 +732,13 @@ export function initLobbyUI(sendIntent: (intent: any) => void) {
 
   refs.spectateBtn.onclick = () => {
     lobbyRuntime.resultsCollapsed = true;
+    refs.returnRoot.style.top = "18%";
     scheduleLobbyUIUpdate();
   };
 
   refs.expandBtn.onclick = () => {
     lobbyRuntime.resultsCollapsed = false;
+    refs.returnRoot.style.top = "40%";
     scheduleLobbyUIUpdate();
   };
 

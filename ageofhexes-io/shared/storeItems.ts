@@ -1,6 +1,8 @@
 export const SKINS_CATALOG = {
   "skin_default": { name: "Classic Hex", price: 0 },
-  "glitch_face": { name: "Glitch Face", price: 50 }
+  "glitch_face": { name: "Glitch Face", price: 15 },
+  "ace": { name: "Ace", price: 25 },
+  "skull": { name: "Skull", price: 50 }
 };
 
 export const DEFAULT_SKIN_ID: keyof typeof SKINS_CATALOG = "skin_default";
@@ -14,5 +16,7 @@ export interface SkinOverlayConfig {
 }
 
 export const SKIN_OVERLAYS: Partial<Record<SkinId, SkinOverlayConfig>> = {
-  "glitch_face": { spanHexes: 3, alpha: 0.55 }
+  "glitch_face": { spanHexes: 4, alpha: 0.50 },
+  "skull": { spanHexes: 3, alpha: 0.45 },
+  "ace": { spanHexes: 3, alpha: 0.50 }
 };

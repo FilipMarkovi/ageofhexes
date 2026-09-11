@@ -3,7 +3,7 @@ import { clientNetState } from "../state/clientState.js";
 import { clientUIState } from "../state/clientState.js";
 import { BASE_GOLD_MAX, BASE_ARMY_MAX, ARMY_CAP_PER_TILE, TICK_RATE, HOUSE_ARMY_CAP_BONUS} from "../../../shared/constants.js";
 import { myConTileCount } from "../main.js";
-import { getUiScale, registerUiRoot, getUiOffset } from "./scale.js";
+import { getUiScale, registerUiRoot } from "./scale.js";
 
 let lastArmy = 0;
 let lastGold = 0;
@@ -230,8 +230,6 @@ export function drawTargetingHUD(ctx: CanvasRenderingContext2D) {
 
   const pulse = 0.6 + Math.sin(Date.now() * 0.004) * 0.4;
   const uiScale = getUiScale();
-  const uiOffset = getUiOffset(ctx.canvas);
-  ctx.translate(uiOffset.x, uiOffset.y);
   ctx.scale(uiScale, uiScale);
 
   const titleText = building
@@ -250,8 +248,12 @@ export function drawTargetingHUD(ctx: CanvasRenderingContext2D) {
   ctx.font = "bold 13px sans-serif";
   const boxWidth = Math.max(320, ctx.measureText(titleText).width + 48);
   const boxHeight = 46;
-  const x = (ctx.canvas.width - boxWidth) / 2;
-  const y = 16;
+  
+  // Position horizontally centered on screen and fixed distance from top
+  const screenCenterX = ctx.canvas.width / uiScale / 2;
+  const x = screenCenterX - boxWidth / 2;
+  const topMargin = 16;
+  const y = topMargin / uiScale;
 
   // 1. Draw the sleek translucent core container card
   ctx.fillStyle = "rgba(15, 23, 42, 0.93)"; // Deep premium slate
@@ -273,12 +275,12 @@ export function drawTargetingHUD(ctx: CanvasRenderingContext2D) {
   // Mode Header Text
   ctx.font = "bold 13px sans-serif";
   ctx.fillStyle = titleColor;
-  ctx.fillText(titleText, ctx.canvas.width / 2, y + 16);
+  ctx.fillText(titleText, screenCenterX, y + 16);
 
   // Action Cancel Subtext Guide
   ctx.font = "500 10px sans-serif";
   ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-  ctx.fillText("Click target hex to deploy • [ESC] Cancel", ctx.canvas.width / 2, y + 32);
+  ctx.fillText("Click target hex to deploy • [ESC] Cancel", screenCenterX, y + 32);
 
   ctx.restore();
 }
@@ -313,12 +315,11 @@ export function addGameLog(text: string, color: string = "#ffffff") {
 
 export function drawGameLogs(ctx: CanvasRenderingContext2D) {
   const uiScale = getUiScale();
-  const uiOffset = getUiOffset(ctx.canvas);
   ctx.save();
-  ctx.translate(uiOffset.x, uiOffset.y);
+  ctx.translate(8 * (1 - uiScale), 8 * (1 - uiScale));
   ctx.scale(uiScale, uiScale);
   const now = Date.now();
-  const startY = 120;
+  const startY = 112;
   const spacing = 28; // Increased spacing for a cleaner look
 
   ctx.textAlign = "left";
